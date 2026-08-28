@@ -5,6 +5,7 @@ const path = require("path");
 const crypto = require("crypto");
 const express = require("express");
 const cors = require("cors");
+const mammoth = require("mammoth");
 
 const {
   getUserByPassword,
@@ -38,30 +39,57 @@ const DOCS_DIR = path.join(__dirname, "docs");
 // ---------------------------------------------------------------------------
 // Caricamento documentazione (RAG "semplice": tutta la documentazione viene
 // inserita nel system prompt di Claude, che risponde SOLO su questa base).
-// Per corpus molto grandi (centinaia di pagine) valutare in futuro un
-// approccio con ricerca per similarità (embeddings + vector DB).
+// Legge file .txt, .md e .docx, anche dentro sottocartelle.
 // ---------------------------------------------------------------------------
-function loadDocumentation() {
+async function loadDocumentation() {
   if (!fs.existsSync(DOCS_DIR)) return "";
-  const files = fs
-    .readdirSync(DOCS_DIR)
-    .filter((f) => /\.(txt|md)$/i.test(f));
+
+  function walk(dir) {
+    let results = [];
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        results = results.concat(walk(fullPath));
+      } else if (/\.(txt|md|docx)$/i.test(entry.name)) {
+        results.push(fullPath);
+      }
+    }
+    return results;
+  }
+
+  const files = walk(DOCS_DIR);
   let combined = "";
-  for (const f of files) {
-    const content = fs.readFileSync(path.join(DOCS_DIR, f), "utf-8");
-    combined += `\n\n===== DOCUMENTO: ${f} =====\n${content}`;
+  for (const filePath of files) {
+    const relativeName = path.relative(DOCS_DIR, filePath);
+    let content;
+    if (/\.docx$/i.test(filePath)) {
+      try {
+        const result = await mammoth.extractRawText({ path: filePath });
+        content = result.value;
+      } catch (err) {
+        console.warn(`Impossibile leggere ${relativeName}: ${err.message}`);
+        continue;
+      }
+    } else {
+      content = fs.readFileSync(filePath, "utf-8");
+    }
+    combined += `\n\n===== DOCUMENTO: ${relativeName} =====\n${content}`;
   }
   return combined.trim();
 }
 
-let DOCUMENTATION = loadDocumentation();
+let DOCUMENTATION = "";
 const DOC_CHAR_LIMIT = 400000; // ~ margine di sicurezza sotto la context window
-if (DOCUMENTATION.length > DOC_CHAR_LIMIT) {
-  console.warn(
-    `ATTENZIONE: la documentazione supera ${DOC_CHAR_LIMIT} caratteri (${DOCUMENTATION.length}). ` +
-      `Verrà troncata. Valutare un sistema di ricerca per similarità (embeddings).`
-  );
-  DOCUMENTATION = DOCUMENTATION.slice(0, DOC_CHAR_LIMIT);
+
+function applyCharLimit() {
+  if (DOCUMENTATION.length > DOC_CHAR_LIMIT) {
+    console.warn(
+      `ATTENZIONE: la documentazione supera ${DOC_CHAR_LIMIT} caratteri (${DOCUMENTATION.length}). ` +
+        `Verrà troncata. Valutare un sistema di ricerca per similarità (embeddings).`
+    );
+    DOCUMENTATION = DOCUMENTATION.slice(0, DOC_CHAR_LIMIT);
+  }
 }
 
 function buildSystemPrompt() {
@@ -133,7 +161,6 @@ function requireAdmin(req, res, next) {
 // ROTTE PUBBLICHE (widget)
 // ---------------------------------------------------------------------------
 
-// 1. Login con password personale
 app.post("/api/login", (req, res) => {
   const { password } = req.body;
   if (!password) return res.status(400).json({ error: "Password mancante." });
@@ -155,7 +182,6 @@ app.post("/api/login", (req, res) => {
   });
 });
 
-// 2. Registrazione nome/cognome/qualifica (solo al primo accesso)
 app.post("/api/register", requireSession, (req, res) => {
   const { nome, cognome, qualifica } = req.body;
   if (!nome || !cognome || !qualifica) {
@@ -165,7 +191,6 @@ app.post("/api/register", requireSession, (req, res) => {
   res.json({ ok: true });
 });
 
-// 3. Domanda al chatbot
 app.post("/api/chat", requireSession, async (req, res) => {
   const { domanda } = req.body;
   if (!domanda || !domanda.trim()) {
@@ -243,14 +268,21 @@ app.post("/api/admin/users/:id/unblock", requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/admin/reload-docs", requireAdmin, (req, res) => {
-  DOCUMENTATION = loadDocumentation();
+app.post("/api/admin/reload-docs", requireAdmin, async (req, res) => {
+  DOCUMENTATION = await loadDocumentation();
+  applyCharLimit();
   res.json({ ok: true, chars: DOCUMENTATION.length });
 });
 
 app.get("/api/health", (req, res) => res.json({ ok: true, docsChars: DOCUMENTATION.length }));
 
-app.listen(PORT, () => {
-  console.log(`Chatbot FIPAV in ascolto sulla porta ${PORT}`);
-  console.log(`Documentazione caricata: ${DOCUMENTATION.length} caratteri`);
-});
+async function start() {
+  DOCUMENTATION = await loadDocumentation();
+  applyCharLimit();
+  app.listen(PORT, () => {
+    console.log(`Chatbot FIPAV in ascolto sulla porta ${PORT}`);
+    console.log(`Documentazione caricata: ${DOCUMENTATION.length} caratteri`);
+  });
+}
+
+start();
