@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const express = require("express");
 const cors = require("cors");
 const mammoth = require("mammoth");
+const { buildIndex, search } = require("./retrieval");
 
 const {
   getUserByPassword,
@@ -36,8 +37,8 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "cambia-questa-password";
 const MAX_QUESTIONS_PER_MONTH = parseInt(process.env.MAX_QUESTIONS_PER_MONTH || "50", 10);
 const DOCS_DIR = path.join(__dirname, "docs");
 
-async function loadDocumentation() {
-  if (!fs.existsSync(DOCS_DIR)) return "";
+async function loadDocuments() {
+  if (!fs.existsSync(DOCS_DIR)) return [];
 
   function walk(dir) {
     let results = [];
@@ -54,7 +55,7 @@ async function loadDocumentation() {
   }
 
   const files = walk(DOCS_DIR);
-  let combined = "";
+  const documents = [];
   for (const filePath of files) {
     const relativeName = path.relative(DOCS_DIR, filePath);
     let content;
@@ -69,42 +70,44 @@ async function loadDocumentation() {
     } else {
       content = fs.readFileSync(filePath, "utf-8");
     }
-    combined += `\n\n===== DOCUMENTO: ${relativeName} =====\n${content}`;
+    if (content && content.trim()) {
+      documents.push({ name: relativeName, content });
+    }
   }
-  return combined.trim();
+  return documents;
 }
 
-let DOCUMENTATION = "";
-let RAW_DOC_CHARS = 0;
-const DOC_CHAR_LIMIT = 700000;
+let DOCS_INDEX = { chunks: [], df: new Map(), N: 0, avgLen: 0 };
+let TOTAL_DOC_CHARS = 0;
 
-function applyCharLimit() {
-  RAW_DOC_CHARS = DOCUMENTATION.length;
-  if (DOCUMENTATION.length > DOC_CHAR_LIMIT) {
-    console.warn(
-      `ATTENZIONE: la documentazione supera ${DOC_CHAR_LIMIT} caratteri (${DOCUMENTATION.length}). ` +
-        `Verrà troncata. Valutare un sistema di ricerca per similarità (embeddings).`
-    );
-    DOCUMENTATION = DOCUMENTATION.slice(0, DOC_CHAR_LIMIT);
-  }
+async function reloadDocs() {
+  const documents = await loadDocuments();
+  TOTAL_DOC_CHARS = documents.reduce((s, d) => s + d.content.length, 0);
+  DOCS_INDEX = buildIndex(documents);
+  console.log(
+    `Documentazione caricata: ${documents.length} file, ${TOTAL_DOC_CHARS} caratteri totali, ${DOCS_INDEX.chunks.length} sezioni indicizzate.`
+  );
 }
 
-function buildSystemPrompt() {
-  return `Sei l'assistente virtuale del Comitato Regionale FIPAV. Rispondi alle domande degli utenti ESCLUSIVAMENTE sulla base della documentazione fornita qui sotto.
+function buildSystemPrompt(relevantText) {
+  return `Sei l'assistente virtuale del Comitato Regionale FIPAV. Rispondi alle domande degli utenti ESCLUSIVAMENTE sulla base degli estratti di documentazione forniti qui sotto (selezionati automaticamente come i più pertinenti alla domanda).
 
 Regole:
-- Se la risposta non si trova nella documentazione, di' chiaramente che non hai questa informazione e suggerisci di contattare la segreteria del Comitato. Non inventare nulla.
+- Se la risposta non si trova negli estratti forniti, di' chiaramente che non hai questa informazione e suggerisci di contattare la segreteria del Comitato. Non inventare nulla.
 - Rispondi in italiano, in modo chiaro e cordiale.
 - Sii conciso: rispondi solo a quanto viene chiesto, senza aggiungere sezioni o informazioni non richieste.
 
-DOCUMENTAZIONE DISPONIBILE:
-${DOCUMENTATION || "(nessuna documentazione caricata)"}`;
+ESTRATTI DI DOCUMENTAZIONE RILEVANTI:
+${relevantText || "(nessun estratto pertinente trovato)"}`;
 }
 
 async function askClaude(domanda) {
   if (!ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY non configurata sul server.");
   }
+
+  const { text: relevantText } = search(DOCS_INDEX, domanda, 90000, 40);
+
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -115,7 +118,7 @@ async function askClaude(domanda) {
     body: JSON.stringify({
       model: CLAUDE_MODEL,
       max_tokens: 1000,
-      system: buildSystemPrompt(),
+      system: buildSystemPrompt(relevantText),
       messages: [{ role: "user", content: domanda }],
     }),
   });
@@ -251,19 +254,18 @@ app.post("/api/admin/users/:id/unblock", requireAdmin, (req, res) => {
 });
 
 app.post("/api/admin/reload-docs", requireAdmin, async (req, res) => {
-  DOCUMENTATION = await loadDocumentation();
-  applyCharLimit();
-  res.json({ ok: true, chars: DOCUMENTATION.length });
+  await reloadDocs();
+  res.json({ ok: true, totalChars: TOTAL_DOC_CHARS, chunks: DOCS_INDEX.chunks.length });
 });
 
-app.get("/api/health", (req, res) => res.json({ ok: true, docsChars: DOCUMENTATION.length, rawDocsChars: RAW_DOC_CHARS, truncated: RAW_DOC_CHARS > DOC_CHAR_LIMIT }));
+app.get("/api/health", (req, res) =>
+  res.json({ ok: true, totalDocChars: TOTAL_DOC_CHARS, chunks: DOCS_INDEX.chunks.length })
+);
 
 async function start() {
-  DOCUMENTATION = await loadDocumentation();
-  applyCharLimit();
+  await reloadDocs();
   app.listen(PORT, () => {
     console.log(`Chatbot FIPAV in ascolto sulla porta ${PORT}`);
-    console.log(`Documentazione caricata: ${DOCUMENTATION.length} caratteri`);
   });
 }
 
