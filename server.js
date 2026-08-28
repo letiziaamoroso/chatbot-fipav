@@ -80,7 +80,7 @@ async function loadDocumentation() {
 }
 
 let DOCUMENTATION = "";
-const DOC_CHAR_LIMIT = 400000; // ~ margine di sicurezza sotto la context window
+const DOC_CHAR_LIMIT = 700000; // ~ margine di sicurezza sotto la context window
 
 function applyCharLimit() {
   if (DOCUMENTATION.length > DOC_CHAR_LIMIT) {
