@@ -36,11 +36,6 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "cambia-questa-password";
 const MAX_QUESTIONS_PER_MONTH = parseInt(process.env.MAX_QUESTIONS_PER_MONTH || "50", 10);
 const DOCS_DIR = path.join(__dirname, "docs");
 
-// ---------------------------------------------------------------------------
-// Caricamento documentazione (RAG "semplice": tutta la documentazione viene
-// inserita nel system prompt di Claude, che risponde SOLO su questa base).
-// Legge file .txt, .md e .docx, anche dentro sottocartelle.
-// ---------------------------------------------------------------------------
 async function loadDocumentation() {
   if (!fs.existsSync(DOCS_DIR)) return "";
 
@@ -80,9 +75,11 @@ async function loadDocumentation() {
 }
 
 let DOCUMENTATION = "";
-const DOC_CHAR_LIMIT = 700000; // ~ margine di sicurezza sotto la context window
+let RAW_DOC_CHARS = 0;
+const DOC_CHAR_LIMIT = 700000;
 
 function applyCharLimit() {
+  RAW_DOC_CHARS = DOCUMENTATION.length;
   if (DOCUMENTATION.length > DOC_CHAR_LIMIT) {
     console.warn(
       `ATTENZIONE: la documentazione supera ${DOC_CHAR_LIMIT} caratteri (${DOCUMENTATION.length}). ` +
@@ -104,9 +101,6 @@ DOCUMENTAZIONE DISPONIBILE:
 ${DOCUMENTATION || "(nessuna documentazione caricata)"}`;
 }
 
-// ---------------------------------------------------------------------------
-// Chiamata a Claude
-// ---------------------------------------------------------------------------
 async function askClaude(domanda) {
   if (!ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY non configurata sul server.");
@@ -136,9 +130,6 @@ async function askClaude(domanda) {
   return textBlock ? textBlock.text : "Non sono riuscito a generare una risposta.";
 }
 
-// ---------------------------------------------------------------------------
-// Middleware: richiede una sessione utente valida (header x-session-token)
-// ---------------------------------------------------------------------------
 function requireSession(req, res, next) {
   const token = req.headers["x-session-token"];
   if (!token) return res.status(401).json({ error: "Sessione mancante." });
@@ -150,16 +141,11 @@ function requireSession(req, res, next) {
   next();
 }
 
-// Middleware: richiede la password admin (header x-admin-password)
 function requireAdmin(req, res, next) {
   const pw = req.headers["x-admin-password"];
   if (pw !== ADMIN_PASSWORD) return res.status(401).json({ error: "Password amministratore non valida." });
   next();
 }
-
-// ---------------------------------------------------------------------------
-// ROTTE PUBBLICHE (widget)
-// ---------------------------------------------------------------------------
 
 app.post("/api/login", (req, res) => {
   const { password } = req.body;
@@ -222,10 +208,6 @@ app.post("/api/chat", requireSession, async (req, res) => {
   }
 });
 
-// ---------------------------------------------------------------------------
-// ROTTE ADMIN (pannello di controllo)
-// ---------------------------------------------------------------------------
-
 app.post("/api/admin/verify", requireAdmin, (req, res) => res.json({ ok: true }));
 
 app.get("/api/admin/users", requireAdmin, (req, res) => {
@@ -274,7 +256,7 @@ app.post("/api/admin/reload-docs", requireAdmin, async (req, res) => {
   res.json({ ok: true, chars: DOCUMENTATION.length });
 });
 
-app.get("/api/health", (req, res) => res.json({ ok: true, docsChars: DOCUMENTATION.length }));
+app.get("/api/health", (req, res) => res.json({ ok: true, docsChars: DOCUMENTATION.length, rawDocsChars: RAW_DOC_CHARS, truncated: RAW_DOC_CHARS > DOC_CHAR_LIMIT }));
 
 async function start() {
   DOCUMENTATION = await loadDocumentation();
