@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Test Chatbot FIPAV</title>
+</head>
+<body style="margin:0; padding:24px; background:#f5f2ea;">
+<div id="app" style="max-width:520px; margin:0 auto; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+
+<style>
+  #app * { box-sizing: border-box; }
+  #app .card { background:#FBF9F5; border:1px solid #E4DCCC; border-radius:16px; padding:20px; }
+  #app input, #app select {
+    width:100%; padding:10px 12px; border:1.5px solid #DDD5C7; border-radius:8px; font-size:14px; margin-bottom:10px; background:#fff;
+  }
+  #app input:focus, #app select:focus { outline:none; border-color:#F2A93B; }
+  #app button.primary {
+    width:100%; padding:11px; border:none; border-radius:8px; background:#F2A93B; color:#16305C;
+    font-weight:700; font-size:14px; cursor:pointer;
+  }
+  #app button.primary:disabled { opacity:.5; cursor:not-allowed; }
+  #app button.link { background:none; border:none; color:#7A7264; font-size:12px; cursor:pointer; text-decoration:underline; margin-top:10px; }
+  #app .error { color:#B3261E; font-size:13px; margin:-4px 0 10px; }
+  #app .label { font-size:14px; font-weight:600; color:#16305C; margin-bottom:8px; }
+  #app .msg { display:flex; margin-bottom:10px; }
+  #app .msg.user { justify-content:flex-end; }
+  #app .bubble { max-width:82%; padding:9px 13px; border-radius:14px; font-size:13.5px; line-height:1.5; white-space:pre-wrap; }
+  #app .msg.user .bubble { background:#16305C; color:#fff; }
+  #app .msg.bot .bubble { background:#EFE9DD; color:#2A2A2A; }
+  #app .msg.system .bubble { color:#7A7264; font-size:12px; margin:0 auto; }
+  #app .messages { max-height:360px; overflow-y:auto; margin-bottom:10px; }
+  #app .counter { font-size:11.5px; color:#7A7264; text-align:center; margin-bottom:8px; }
+  #app .row { display:flex; gap:8px; }
+  #app .row input { margin-bottom:0; }
+  #app .send { width:42px; flex-shrink:0; border:none; border-radius:8px; background:#16305C; color:#fff; cursor:pointer; }
+  #app .summary { background:#fff; border-radius:8px; padding:10px 12px; font-size:12.5px; color:#555; margin-bottom:12px; }
+  #app .apiurl { font-size:11px; color:#999; text-align:center; margin-top:16px; word-break:break-all; }
+</style>
+
+<div class="card" id="root"></div>
+<div class="apiurl" id="api-url-display"></div>
+
+<script>
+const API_BASE_URL = "https://chatbot-fipav-production.up.railway.app";
+
+let sessionToken = null;
+let isRegistered = false;
+const root = document.getElementById("root");
+document.getElementById("api-url-display").textContent = "Collegato a: " + API_BASE_URL;
+
+async function api(path, opts = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (sessionToken) headers["x-session-token"] = sessionToken;
+  const resp = await fetch(API_BASE_URL + path, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.error || "Errore di comunicazione con il server.");
+  return data;
+}
+
+function renderPasswordStep() {
+  root.innerHTML = `
+    <div class="label">Accesso</div>
+    <p style="font-size:13px; color:#7A7264; margin:0 0 10px;">Inserisci il codice di accesso fornito.</p>
+    <input type="password" id="password-input" placeholder="Codice di accesso" />
+    <div class="error" id="password-error" style="display:none;"></div>
+    <button class="primary" id="password-submit">Entra</button>
+  `;
+  const submit = async () => {
+    const pw = document.getElementById("password-input").value.trim();
+    const errEl = document.getElementById("password-error");
+    errEl.style.display = "none";
+    if (!pw) return;
+    try {
+      const data = await api("/api/login", { method: "POST", body: JSON.stringify({ password: pw }) });
+      sessionToken = data.token;
+      renderRegisterStep();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = "block";
+    }
+  };
+  document.getElementById("password-submit").onclick = submit;
+  document.getElementById("password-input").addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+}
+
+function renderRegisterStep() {
+  root.innerHTML = `
+    <div class="label">I tuoi dati</div>
+    <p style="font-size:12.5px; color:#7A7264; margin:0 0 10px;">Questo codice è condiviso: indica chi sei ad ogni accesso.</p>
+    <input type="text" id="nome-input" placeholder="Nome" />
+    <input type="text" id="cognome-input" placeholder="Cognome" />
+    <select id="qualifica-input">
+      <option value="" selected disabled>Seleziona la qualifica...</option>
+      <option value="Atleta">Atleta</option>
+      <option value="Allenatore/Allenatrice">Allenatore/Allenatrice</option>
+      <option value="Dirigente">Dirigente</option>
+      <option value="Arbitro">Arbitro</option>
+      <option value="Genitore">Genitore</option>
+      <option value="Altro">Altro</option>
+    </select>
+    <div class="error" id="register-error" style="display:none;"></div>
+    <button class="primary" id="register-submit">Continua</button>
+  `;
+  document.getElementById("register-submit").onclick = async () => {
+    const nome = document.getElementById("nome-input").value.trim();
+    const cognome = document.getElementById("cognome-input").value.trim();
+    const qualifica = document.getElementById("qualifica-input").value;
+    const errEl = document.getElementById("register-error");
+    errEl.style.display = "none";
+    if (!nome || !cognome || !qualifica) {
+      errEl.textContent = "Compila tutti i campi.";
+      errEl.style.display = "block";
+      return;
+    }
+    try {
+      await api("/api/register", { method: "POST", body: JSON.stringify({ nome, cognome, qualifica }) });
+      startChat(nome);
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = "block";
+    }
+  };
+}
+
+function startChat(nome) {
+  root.innerHTML = `
+    <div class="summary">Connesso come <b>${nome || "utente"}</b> — backend online reale</div>
+    <div class="messages" id="messages"></div>
+    <div class="counter" id="counter-line"></div>
+    <div class="row">
+      <input type="text" id="question-input" placeholder="Scrivi una domanda vera..." />
+      <button class="send" id="send-btn">&#10148;</button>
+    </div>
+    <button class="link" id="restart-btn">Esci e ricomincia</button>
+  `;
+  addMessage("Buongiorno, come posso aiutarti?", "bot");
+  document.getElementById("send-btn").onclick = askQuestion;
+  document.getElementById("question-input").addEventListener("keydown", e => { if (e.key === "Enter") askQuestion(); });
+  document.getElementById("restart-btn").onclick = () => {
+    sessionToken = null;
+    renderPasswordStep();
+  };
+}
+
+function addMessage(text, who) {
+  const messages = document.getElementById("messages");
+  const row = document.createElement("div");
+  row.className = "msg " + who;
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  bubble.textContent = text;
+  row.appendChild(bubble);
+  messages.appendChild(row);
+  messages.scrollTop = messages.scrollHeight;
+  return row;
+}
+
+async function askQuestion() {
+  const input = document.getElementById("question-input");
+  const text = input.value.trim();
+  if (!text) return;
+
+  addMessage(text, "user");
+  input.value = "";
+  const sendBtn = document.getElementById("send-btn");
+  sendBtn.disabled = true;
+  const thinkingRow = addMessage("Sto pensando...", "system");
+
+  try {
+    const data = await api("/api/chat", { method: "POST", body: JSON.stringify({ domanda: text }) });
+    thinkingRow.remove();
+    addMessage(data.risposta, "bot");
+    if (typeof data.remaining === "number") {
+      document.getElementById("counter-line").textContent = "Domande rimanenti questo mese: " + data.remaining;
+    }
+  } catch (err) {
+    thinkingRow.remove();
+    addMessage(err.message, "system");
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+renderPasswordStep();
+</script>
+</div>
+</body>
+</html>
