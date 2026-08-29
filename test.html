@@ -61,8 +61,8 @@ async function api(path, opts = {}) {
 function renderPasswordStep() {
   root.innerHTML = `
     <div class="label">Accesso</div>
-    <p style="font-size:13px; color:#7A7264; margin:0 0 10px;">Inserisci una password creata dal pannello admin.</p>
-    <input type="password" id="password-input" placeholder="Password personale" />
+    <p style="font-size:13px; color:#7A7264; margin:0 0 10px;">Inserisci il codice di accesso fornito.</p>
+    <input type="password" id="password-input" placeholder="Codice di accesso" />
     <div class="error" id="password-error" style="display:none;"></div>
     <button class="primary" id="password-submit">Entra</button>
   `;
@@ -74,12 +74,7 @@ function renderPasswordStep() {
     try {
       const data = await api("/api/login", { method: "POST", body: JSON.stringify({ password: pw }) });
       sessionToken = data.token;
-      isRegistered = data.registered;
-      if (isRegistered) {
-        startChat(data.nome);
-      } else {
-        renderRegisterStep();
-      }
+      renderRegisterStep();
     } catch (err) {
       errEl.textContent = err.message;
       errEl.style.display = "block";
@@ -91,7 +86,8 @@ function renderPasswordStep() {
 
 function renderRegisterStep() {
   root.innerHTML = `
-    <div class="label">Primo accesso: i tuoi dati</div>
+    <div class="label">I tuoi dati</div>
+    <p style="font-size:12.5px; color:#7A7264; margin:0 0 10px;">Questo codice è condiviso: indica chi sei ad ogni accesso.</p>
     <input type="text" id="nome-input" placeholder="Nome" />
     <input type="text" id="cognome-input" placeholder="Cognome" />
     <select id="qualifica-input">
