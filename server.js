@@ -17,6 +17,7 @@ const {
   deleteUser,
   resetCounter,
   setBlocked,
+  updatePassword,
   createSession,
   setSessionIdentity,
   getSession,
@@ -248,6 +249,16 @@ app.post("/api/admin/users/:id/block", requireAdmin, (req, res) => {
 app.post("/api/admin/users/:id/unblock", requireAdmin, (req, res) => {
   setBlocked(req.params.id, false);
   res.json({ ok: true });
+});
+app.post("/api/admin/users/:id/password", requireAdmin, (req, res) => {
+  const { password } = req.body;
+  if (!password || !password.trim()) return res.status(400).json({ error: "Nuovo codice obbligatorio." });
+  try {
+    updatePassword(req.params.id, password.trim());
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: "Codice già in uso da un altro accesso." });
+  }
 });
 
 app.post("/api/admin/reload-docs", requireAdmin, async (req, res) => {
