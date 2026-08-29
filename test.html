@@ -134,7 +134,7 @@ function startChat(nome) {
     </div>
     <button class="link" id="restart-btn">Esci e ricomincia</button>
   `;
-  addMessage("Ciao! Fammi una domanda basata sulla tua documentazione reale.", "bot");
+  addMessage("Buongiorno, come posso aiutarti?", "bot");
   document.getElementById("send-btn").onclick = askQuestion;
   document.getElementById("question-input").addEventListener("keydown", e => { if (e.key === "Enter") askQuestion(); });
   document.getElementById("restart-btn").onclick = () => {
