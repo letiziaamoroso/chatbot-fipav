@@ -108,6 +108,9 @@ function resetCounter(id) {
 function setBlocked(id, blocked) {
   db.prepare("UPDATE users SET blocked = ? WHERE id = ?").run(blocked ? 1 : 0, id);
 }
+function updatePassword(id, newPassword) {
+  db.prepare("UPDATE users SET password = ? WHERE id = ?").run(newPassword, id);
+}
 
 function createSession(token, userId, ttlHours = 12) {
   const expires = new Date(Date.now() + ttlHours * 3600 * 1000).toISOString();
@@ -164,6 +167,7 @@ module.exports = {
   deleteUser,
   resetCounter,
   setBlocked,
+  updatePassword,
   createSession,
   setSessionIdentity,
   getSession,
