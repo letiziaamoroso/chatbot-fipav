@@ -16,8 +16,8 @@ CREATE TABLE IF NOT EXISTS users (
   qualifica TEXT,
   registered INTEGER NOT NULL DEFAULT 0,
   question_count INTEGER NOT NULL DEFAULT 0,
-  count_month TEXT,                 -- formato 'YYYY-MM', mese a cui si riferisce question_count
-  blocked INTEGER NOT NULL DEFAULT 0, -- blocco manuale opzionale da pannello admin
+  count_month TEXT,
+  blocked INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_login TEXT
 );
@@ -25,6 +25,9 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
   user_id INTEGER NOT NULL,
+  nome TEXT,
+  cognome TEXT,
+  qualifica TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   expires_at TEXT NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users(id)
@@ -33,6 +36,9 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE TABLE IF NOT EXISTS logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
+  nome TEXT,
+  cognome TEXT,
+  qualifica TEXT,
   domanda TEXT NOT NULL,
   risposta TEXT,
   timestamp TEXT NOT NULL DEFAULT (datetime('now')),
@@ -45,7 +51,6 @@ function currentMonth() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-// ---------- UTENTI ----------
 function getUserByPassword(password) {
   return db.prepare("SELECT * FROM users WHERE password = ?").get(password);
 }
@@ -64,7 +69,6 @@ function registerUser(userId, nome, cognome, qualifica) {
   ).run(nome, cognome, qualifica, userId);
 }
 
-// Assicura che il contatore sia relativo al mese corrente; se il mese è cambiato, lo azzera.
 function ensureCurrentMonth(user) {
   const m = currentMonth();
   if (user.count_month !== m) {
@@ -105,13 +109,21 @@ function setBlocked(id, blocked) {
   db.prepare("UPDATE users SET blocked = ? WHERE id = ?").run(blocked ? 1 : 0, id);
 }
 
-// ---------- SESSIONI ----------
 function createSession(token, userId, ttlHours = 12) {
   const expires = new Date(Date.now() + ttlHours * 3600 * 1000).toISOString();
   db.prepare("INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)").run(
     token,
     userId,
     expires
+  );
+}
+
+function setSessionIdentity(token, nome, cognome, qualifica) {
+  db.prepare("UPDATE sessions SET nome = ?, cognome = ?, qualifica = ? WHERE token = ?").run(
+    nome,
+    cognome,
+    qualifica,
+    token
   );
 }
 
@@ -125,23 +137,16 @@ function getSession(token) {
   return s;
 }
 
-// ---------- LOG DOMANDE ----------
-function addLog(userId, domanda, risposta) {
-  db.prepare("INSERT INTO logs (user_id, domanda, risposta) VALUES (?, ?, ?)").run(
-    userId,
-    domanda,
-    risposta
-  );
+function addLog(userId, nome, cognome, qualifica, domanda, risposta) {
+  db.prepare(
+    "INSERT INTO logs (user_id, nome, cognome, qualifica, domanda, risposta) VALUES (?, ?, ?, ?, ?, ?)"
+  ).run(userId, nome, cognome, qualifica, domanda, risposta);
 }
 
 function listLogs(limit = 500) {
   return db
-    .prepare(
-      `SELECT logs.id, logs.domanda, logs.risposta, logs.timestamp,
-              users.nome, users.cognome, users.qualifica, users.id AS user_id
-       FROM logs JOIN users ON logs.user_id = users.id
-       ORDER BY logs.timestamp DESC LIMIT ?`
-    )
+    .prepare(`SELECT id, user_id, nome, cognome, qualifica, domanda, risposta, timestamp
+              FROM logs ORDER BY timestamp DESC LIMIT ?`)
     .all(limit);
 }
 
@@ -160,6 +165,7 @@ module.exports = {
   resetCounter,
   setBlocked,
   createSession,
+  setSessionIdentity,
   getSession,
   addLog,
   listLogs,
