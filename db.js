@@ -17,18 +17,11 @@ CREATE TABLE IF NOT EXISTS users (
   qualifica TEXT,
   registered INTEGER NOT NULL DEFAULT 0,
   question_count INTEGER NOT NULL DEFAULT 0,
-  count_month TEXT,
-  blocked INTEGER NOT NULL DEFAULT 0,
+  count_month TEXT,                 -- formato 'YYYY-MM', mese a cui si riferisce question_count
+  blocked INTEGER NOT NULL DEFAULT 0, -- blocco manuale opzionale da pannello admin
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_login TEXT
 );
-
-// Migrazione: se il database esisteva già prima di questa colonna, aggiungila.
-try {
-  db.exec("ALTER TABLE users ADD COLUMN societa TEXT");
-} catch (err) {
-  // colonna già presente, va bene così
-}
 
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
@@ -54,11 +47,19 @@ CREATE TABLE IF NOT EXISTS logs (
 );
 `);
 
+// Migrazione: se il database esisteva già prima di questa colonna, aggiungila.
+try {
+  db.exec("ALTER TABLE users ADD COLUMN societa TEXT");
+} catch (err) {
+  // colonna già presente, va bene così
+}
+
 function currentMonth() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// ---------- UTENTI ----------
 function getUserByPassword(password) {
   return db.prepare("SELECT * FROM users WHERE password = ?").get(password);
 }
@@ -77,6 +78,7 @@ function registerUser(userId, nome, cognome, qualifica) {
   ).run(nome, cognome, qualifica, userId);
 }
 
+// Assicura che il contatore sia relativo al mese corrente; se il mese è cambiato, lo azzera.
 function ensureCurrentMonth(user) {
   const m = currentMonth();
   if (user.count_month !== m) {
@@ -115,10 +117,12 @@ function resetCounter(id) {
 function setBlocked(id, blocked) {
   db.prepare("UPDATE users SET blocked = ? WHERE id = ?").run(blocked ? 1 : 0, id);
 }
+
 function updatePassword(id, newPassword) {
   db.prepare("UPDATE users SET password = ? WHERE id = ?").run(newPassword, id);
 }
 
+// ---------- SESSIONI ----------
 function createSession(token, userId, ttlHours = 12) {
   const expires = new Date(Date.now() + ttlHours * 3600 * 1000).toISOString();
   db.prepare("INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)").run(
@@ -147,6 +151,7 @@ function getSession(token) {
   return s;
 }
 
+// ---------- LOG DOMANDE ----------
 function addLog(userId, nome, cognome, qualifica, domanda, risposta) {
   db.prepare(
     "INSERT INTO logs (user_id, nome, cognome, qualifica, domanda, risposta) VALUES (?, ?, ?, ?, ?, ?)"
