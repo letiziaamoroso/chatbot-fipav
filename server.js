@@ -5,14 +5,11 @@ const path = require("path");
 const crypto = require("crypto");
 const express = require("express");
 const cors = require("cors");
-const mammoth = require("mammoth");
-const { buildIndex, search } = require("./retrieval");
 
 const {
   getUserByPassword,
   getUserById,
   touchLogin,
-  registerUser,
   ensureCurrentMonth,
   incrementQuestionCount,
   addUser,
@@ -21,6 +18,7 @@ const {
   resetCounter,
   setBlocked,
   createSession,
+  setSessionIdentity,
   getSession,
   addLog,
   listLogs,
@@ -36,6 +34,9 @@ const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "cambia-questa-password";
 const MAX_QUESTIONS_PER_MONTH = parseInt(process.env.MAX_QUESTIONS_PER_MONTH || "50", 10);
 const DOCS_DIR = path.join(__dirname, "docs");
+
+const mammoth = require("mammoth");
+const { buildIndex, search } = require("./retrieval");
 
 async function loadDocuments() {
   if (!fs.existsSync(DOCS_DIR)) return [];
@@ -141,6 +142,8 @@ function requireSession(req, res, next) {
   const user = getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: "Utente non trovato." });
   req.user = user;
+  req.session = session;
+  req.sessionToken = token;
   next();
 }
 
@@ -152,23 +155,17 @@ function requireAdmin(req, res, next) {
 
 app.post("/api/login", (req, res) => {
   const { password } = req.body;
-  if (!password) return res.status(400).json({ error: "Password mancante." });
+  if (!password) return res.status(400).json({ error: "Codice di accesso mancante." });
 
   const user = getUserByPassword(password.trim());
-  if (!user) return res.status(401).json({ error: "Utente non riconosciuto." });
-  if (user.blocked) return res.status(403).json({ error: "Il tuo accesso è stato sospeso. Contatta il Comitato." });
+  if (!user) return res.status(401).json({ error: "Codice di accesso non riconosciuto." });
+  if (user.blocked) return res.status(403).json({ error: "Questo codice di accesso è stato sospeso. Contatta il Comitato." });
 
   touchLogin(user.id);
   const token = crypto.randomBytes(24).toString("hex");
   createSession(token, user.id);
 
-  res.json({
-    token,
-    registered: !!user.registered,
-    nome: user.nome,
-    cognome: user.cognome,
-    qualifica: user.qualifica,
-  });
+  res.json({ token });
 });
 
 app.post("/api/register", requireSession, (req, res) => {
@@ -176,7 +173,7 @@ app.post("/api/register", requireSession, (req, res) => {
   if (!nome || !cognome || !qualifica) {
     return res.status(400).json({ error: "Nome, cognome e qualifica sono obbligatori." });
   }
-  registerUser(req.user.id, nome.trim(), cognome.trim(), qualifica.trim());
+  setSessionIdentity(req.sessionToken, nome.trim(), cognome.trim(), qualifica.trim());
   res.json({ ok: true });
 });
 
@@ -187,11 +184,11 @@ app.post("/api/chat", requireSession, async (req, res) => {
   }
 
   let user = ensureCurrentMonth(req.user);
-  if (!user.registered) {
-    return res.status(403).json({ error: "Completa prima la registrazione (nome, cognome, qualifica)." });
+  if (!req.session.nome) {
+    return res.status(403).json({ error: "Completa prima i tuoi dati (nome, cognome, qualifica)." });
   }
   if (user.blocked) {
-    return res.status(403).json({ error: "Il tuo accesso è stato sospeso. Contatta il Comitato." });
+    return res.status(403).json({ error: "Questo codice di accesso è stato sospeso. Contatta il Comitato." });
   }
   if (user.question_count >= MAX_QUESTIONS_PER_MONTH) {
     return res.status(429).json({
@@ -202,7 +199,7 @@ app.post("/api/chat", requireSession, async (req, res) => {
   try {
     const risposta = await askClaude(domanda.trim());
     incrementQuestionCount(user.id);
-    addLog(user.id, domanda.trim(), risposta);
+    addLog(user.id, req.session.nome, req.session.cognome, req.session.qualifica, domanda.trim(), risposta);
     const remaining = MAX_QUESTIONS_PER_MONTH - (user.question_count + 1);
     res.json({ risposta, remaining });
   } catch (err) {
@@ -223,13 +220,13 @@ app.get("/api/admin/logs", requireAdmin, (req, res) => {
 });
 
 app.post("/api/admin/users", requireAdmin, (req, res) => {
-  const { password, nome, cognome, qualifica } = req.body;
-  if (!password) return res.status(400).json({ error: "Password obbligatoria." });
+  const { password } = req.body;
+  if (!password) return res.status(400).json({ error: "Codice di accesso obbligatorio." });
   try {
-    addUser(password.trim(), nome || null, cognome || null, qualifica || null);
+    addUser(password.trim());
     res.json({ ok: true });
   } catch (err) {
-    res.status(400).json({ error: "Password già esistente o dati non validi." });
+    res.status(400).json({ error: "Codice già esistente o dati non validi." });
   }
 });
 
