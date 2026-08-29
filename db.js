@@ -11,6 +11,7 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   password TEXT UNIQUE NOT NULL,
+  societa TEXT,
   nome TEXT,
   cognome TEXT,
   qualifica TEXT,
@@ -21,6 +22,13 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_login TEXT
 );
+
+// Migrazione: se il database esisteva già prima di questa colonna, aggiungila.
+try {
+  db.exec("ALTER TABLE users ADD COLUMN societa TEXT");
+} catch (err) {
+  // colonna già presente, va bene così
+}
 
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
@@ -83,12 +91,11 @@ function incrementQuestionCount(userId) {
   db.prepare("UPDATE users SET question_count = question_count + 1 WHERE id = ?").run(userId);
 }
 
-function addUser(password, nome = null, cognome = null, qualifica = null) {
+function addUser(password, societa = null) {
   const stmt = db.prepare(
-    "INSERT INTO users (password, nome, cognome, qualifica, registered, count_month) VALUES (?, ?, ?, ?, ?, ?)"
+    "INSERT INTO users (password, societa, count_month) VALUES (?, ?, ?)"
   );
-  const registered = nome && cognome && qualifica ? 1 : 0;
-  return stmt.run(password, nome, cognome, qualifica, registered, currentMonth());
+  return stmt.run(password, societa, currentMonth());
 }
 
 function listUsers() {
