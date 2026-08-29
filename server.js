@@ -221,10 +221,10 @@ app.get("/api/admin/logs", requireAdmin, (req, res) => {
 });
 
 app.post("/api/admin/users", requireAdmin, (req, res) => {
-  const { password } = req.body;
+  const { password, societa } = req.body;
   if (!password) return res.status(400).json({ error: "Codice di accesso obbligatorio." });
   try {
-    addUser(password.trim());
+    addUser(password.trim(), societa ? societa.trim() : null);
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: "Codice già esistente o dati non validi." });
@@ -250,6 +250,7 @@ app.post("/api/admin/users/:id/unblock", requireAdmin, (req, res) => {
   setBlocked(req.params.id, false);
   res.json({ ok: true });
 });
+
 app.post("/api/admin/users/:id/password", requireAdmin, (req, res) => {
   const { password } = req.body;
   if (!password || !password.trim()) return res.status(400).json({ error: "Nuovo codice obbligatorio." });
