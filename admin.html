@@ -117,7 +117,7 @@
       <table>
         <thead>
           <tr>
-            <th>Nome</th><th>Qualifica</th><th>Domande (mese)</th><th>Stato</th><th>Ultimo accesso</th><th></th>
+            <th>Codice di accesso</th><th>Domande (mese)</th><th>Stato</th><th>Ultimo accesso</th><th></th>
           </tr>
         </thead>
         <tbody id="users-tbody"></tbody>
@@ -138,22 +138,14 @@
       <h2>Aggiungi un nuovo utente</h2>
       <div class="add-user-form">
         <div class="field">
-          <label>Password personale</label>
-          <input type="text" id="new-password" placeholder="es. mario2026" />
+          <label>Codice di accesso</label>
+          <input type="text" id="new-password" placeholder="es. societa2026" />
         </div>
-        <div class="field">
-          <label>Nome (opzionale)</label>
-          <input type="text" id="new-nome" />
-        </div>
-        <div class="field">
-          <label>Cognome (opzionale)</label>
-          <input type="text" id="new-cognome" />
-        </div>
-        <button class="btn" onclick="addUser()">Crea utente</button>
+        <button class="btn" onclick="addUser()">Crea codice</button>
       </div>
       <p style="font-size:12px; color:var(--muted); margin-top:10px;">
-        Se lasci vuoti nome e cognome, l'utente li inserirà lui stesso al primo accesso.
-        Puoi anche creare in blocco tanti utenti usando lo script <code>seed-users.js</code> nel backend.
+        Il codice può essere condiviso da più persone della stessa società (allenatori, dirigenti, ecc.):
+        ognuno indicherà chi è ad ogni accesso, e lo vedrai nella cronologia delle domande.
       </p>
       <div id="add-user-msg"></div>
     </div>
@@ -239,18 +231,17 @@
     const tbody = document.getElementById("users-tbody");
     tbody.innerHTML = users
       .map((u) => {
-        const nome = u.nome ? `${escapeHtml(u.nome)} ${escapeHtml(u.cognome || "")}` : "<em>non ancora registrato</em>";
         let statusPill = '<span class="pill ok">attivo</span>';
         if (u.blocked) statusPill = '<span class="pill blocked">bloccato</span>';
         else if (u.question_count >= 50) statusPill = '<span class="pill warn">limite raggiunto</span>';
         return `
           <tr>
-            <td>${nome}</td>
-            <td>${escapeHtml(u.qualifica || "—")}</td>
+            <td><code>${escapeHtml(u.password)}</code></td>
             <td>${u.question_count} / 50</td>
             <td>${statusPill}</td>
             <td>${u.last_login ? escapeHtml(u.last_login) : "mai"}</td>
             <td class="row-actions">
+              <button onclick="changePassword(${u.id})">Cambia codice</button>
               <button onclick="resetCounter(${u.id})">Azzera contatore</button>
               ${
                 u.blocked
@@ -291,6 +282,16 @@
     await api(`/api/admin/users/${id}/unblock`, { method: "POST" });
     loadAll();
   }
+  async function changePassword(id) {
+    const nuovo = prompt("Inserisci il nuovo codice di accesso:");
+    if (!nuovo || !nuovo.trim()) return;
+    try {
+      await api(`/api/admin/users/${id}/password`, { method: "POST", body: JSON.stringify({ password: nuovo.trim() }) });
+      loadAll();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
   async function deleteUser(id) {
     if (!confirm("Eliminare definitivamente questo utente e la sua cronologia?")) return;
     await api(`/api/admin/users/${id}`, { method: "DELETE" });
@@ -298,22 +299,18 @@
   }
   async function addUser() {
     const password = document.getElementById("new-password").value.trim();
-    const nome = document.getElementById("new-nome").value.trim();
-    const cognome = document.getElementById("new-cognome").value.trim();
     const msgEl = document.getElementById("add-user-msg");
     msgEl.textContent = "";
     if (!password) {
       msgEl.style.color = "var(--danger)";
-      msgEl.textContent = "Inserisci una password.";
+      msgEl.textContent = "Inserisci un codice di accesso.";
       return;
     }
     try {
-      await api("/api/admin/users", { method: "POST", body: JSON.stringify({ password, nome, cognome }) });
+      await api("/api/admin/users", { method: "POST", body: JSON.stringify({ password }) });
       msgEl.style.color = "#22682B";
-      msgEl.textContent = "Utente creato.";
+      msgEl.textContent = "Codice creato.";
       document.getElementById("new-password").value = "";
-      document.getElementById("new-nome").value = "";
-      document.getElementById("new-cognome").value = "";
       loadAll();
     } catch (err) {
       msgEl.style.color = "var(--danger)";
