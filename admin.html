@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pannello Chatbot FIPAV</title>
+<style>
+  :root {
+    --navy: #16305C;
+    --gold: #F2A93B;
+    --bg: #FBF9F5;
+    --line: #E4DCCC;
+    --text: #2A2A2A;
+    --muted: #7A7264;
+    --danger: #B3261E;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  header {
+    background: var(--navy); color: #fff; padding: 18px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    background-image: repeating-linear-gradient(135deg, rgba(242,169,59,0.10) 0 2px, transparent 2px 16px);
+  }
+  header h1 { font-size: 18px; margin: 0; font-weight: 700; }
+  header .sub { font-size: 12px; opacity: 0.7; }
+  main { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  #login-screen { max-width: 340px; margin: 90px auto; text-align: center; }
+  #login-screen input {
+    width: 100%; padding: 11px 14px; border: 1.5px solid var(--line); border-radius: 8px;
+    font-size: 14px; margin: 14px 0;
+  }
+  #login-screen button, .btn {
+    background: var(--gold); color: var(--navy); border: none; padding: 10px 18px;
+    border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13.5px;
+  }
+  #login-screen button:hover, .btn:hover { filter: brightness(1.05); }
+  #login-error { color: var(--danger); font-size: 13px; min-height: 18px; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab-btn {
+    background: #fff; border: 1.5px solid var(--line); padding: 8px 16px; border-radius: 20px;
+    cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted);
+  }
+  .tab-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .card h2 { font-size: 15px; margin: 0 0 14px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; }
+  tr:last-child td { border-bottom: none; }
+  .pill {
+    display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700;
+  }
+  .pill.ok { background: #E3F0E5; color: #22682B; }
+  .pill.warn { background: #FCE9CF; color: #935A15; }
+  .pill.blocked { background: #FBE2E0; color: var(--danger); }
+
+  .row-actions button {
+    background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px;
+    font-size: 11.5px; cursor: pointer; margin-right: 4px; color: var(--text);
+  }
+  .row-actions button:hover { border-color: var(--navy); }
+  .row-actions button.danger { color: var(--danger); border-color: #F3CFCB; }
+
+  .add-user-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+  .add-user-form .field { display: flex; flex-direction: column; gap: 4px; }
+  .add-user-form label { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+  .add-user-form input, .add-user-form select {
+    padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 7px; font-size: 13px;
+  }
+  #add-user-msg { font-size: 12.5px; margin-top: 8px; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-box { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .stat-box .num { font-size: 24px; font-weight: 800; color: var(--navy); }
+  .stat-box .label { font-size: 11.5px; color: var(--muted); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <h1 style="color:var(--navy);">Pannello Chatbot FIPAV</h1>
+  <p style="color:var(--muted); font-size: 13px;">Inserisci la password amministratore per accedere.</p>
+  <input type="password" id="admin-password" placeholder="Password amministratore" />
+  <div id="login-error"></div>
+  <button onclick="doLogin()">Accedi</button>
+</div>
+
+<div id="dashboard" class="hidden">
+  <header>
+    <div>
+      <h1>Pannello di controllo — Chatbot FIPAV</h1>
+      <div class="sub">Utenti, accessi e domande</div>
+    </div>
+    <button class="btn" onclick="logout()">Esci</button>
+  </header>
+
+  <main>
+    <div class="stat-grid" id="stat-grid"></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="users" onclick="switchTab('users')">Utenti</button>
+      <button class="tab-btn" data-tab="logs" onclick="switchTab('logs')">Domande</button>
+      <button class="tab-btn" data-tab="add" onclick="switchTab('add')">Aggiungi utente</button>
+    </div>
+
+    <div id="tab-users" class="card">
+      <h2>Elenco utenti</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th><th>Qualifica</th><th>Domande (mese)</th><th>Stato</th><th>Ultimo accesso</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody"></tbody>
+      </table>
+    </div>
+
+    <div id="tab-logs" class="card hidden">
+      <h2>Cronologia domande</h2>
+      <table>
+        <thead>
+          <tr><th>Utente</th><th>Domanda</th><th>Risposta</th><th>Data/ora</th></tr>
+        </thead>
+        <tbody id="logs-tbody"></tbody>
+      </table>
+    </div>
+
+    <div id="tab-add" class="card hidden">
+      <h2>Aggiungi un nuovo utente</h2>
+      <div class="add-user-form">
+        <div class="field">
+          <label>Password personale</label>
+          <input type="text" id="new-password" placeholder="es. mario2026" />
+        </div>
+        <div class="field">
+          <label>Nome (opzionale)</label>
+          <input type="text" id="new-nome" />
+        </div>
+        <div class="field">
+          <label>Cognome (opzionale)</label>
+          <input type="text" id="new-cognome" />
+        </div>
+        <button class="btn" onclick="addUser()">Crea utente</button>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin-top:10px;">
+        Se lasci vuoti nome e cognome, l'utente li inserirà lui stesso al primo accesso.
+        Puoi anche creare in blocco tanti utenti usando lo script <code>seed-users.js</code> nel backend.
+      </p>
+      <div id="add-user-msg"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // ==========================================================
+  const API_BASE_URL = "https://chatbot-fipav-production.up.railway.app";
+  // ==========================================================
+
+  let adminPassword = sessionStorage.getItem("fpv_admin_pw") || "";
+
+  async function api(path, opts = {}) {
+    const resp = await fetch(API_BASE_URL + path, {
+      ...opts,
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-password": adminPassword,
+        ...(opts.headers || {}),
+      },
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || "Errore");
+    return data;
+  }
+
+  async function doLogin() {
+    const pw = document.getElementById("admin-password").value;
+    const errEl = document.getElementById("login-error");
+    errEl.textContent = "";
+    adminPassword = pw;
+    try {
+      await api("/api/admin/verify", { method: "POST" });
+      sessionStorage.setItem("fpv_admin_pw", pw);
+      document.getElementById("login-screen").classList.add("hidden");
+      document.getElementById("dashboard").classList.remove("hidden");
+      loadAll();
+    } catch (err) {
+      errEl.textContent = "Password errata.";
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem("fpv_admin_pw");
+    adminPassword = "";
+    document.getElementById("dashboard").classList.add("hidden");
+    document.getElementById("login-screen").classList.remove("hidden");
+  }
+
+  function switchTab(tab) {
+    ["users", "logs", "add"].forEach((t) => {
+      document.getElementById("tab-" + t).classList.toggle("hidden", t !== tab);
+    });
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return "";
+    return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  async function loadAll() {
+    const [users, logs] = await Promise.all([api("/api/admin/users"), api("/api/admin/logs")]);
+    renderStats(users, logs);
+    renderUsers(users);
+    renderLogs(logs);
+  }
+
+  function renderStats(users, logs) {
+    const totalQuestions = users.reduce((s, u) => s + (u.question_count || 0), 0);
+    const blocked = users.filter((u) => u.blocked).length;
+    const atLimit = users.filter((u) => u.question_count >= 50).length;
+    document.getElementById("stat-grid").innerHTML = `
+      <div class="stat-box"><div class="num">${users.length}</div><div class="label">Utenti totali</div></div>
+      <div class="stat-box"><div class="num">${totalQuestions}</div><div class="label">Domande questo mese</div></div>
+      <div class="stat-box"><div class="num">${atLimit}</div><div class="label">Al limite mensile</div></div>
+      <div class="stat-box"><div class="num">${blocked}</div><div class="label">Utenti bloccati</div></div>
+    `;
+  }
+
+  function renderUsers(users) {
+    const tbody = document.getElementById("users-tbody");
+    tbody.innerHTML = users
+      .map((u) => {
+        const nome = u.nome ? `${escapeHtml(u.nome)} ${escapeHtml(u.cognome || "")}` : "<em>non ancora registrato</em>";
+        let statusPill = '<span class="pill ok">attivo</span>';
+        if (u.blocked) statusPill = '<span class="pill blocked">bloccato</span>';
+        else if (u.question_count >= 50) statusPill = '<span class="pill warn">limite raggiunto</span>';
+        return `
+          <tr>
+            <td>${nome}</td>
+            <td>${escapeHtml(u.qualifica || "—")}</td>
+            <td>${u.question_count} / 50</td>
+            <td>${statusPill}</td>
+            <td>${u.last_login ? escapeHtml(u.last_login) : "mai"}</td>
+            <td class="row-actions">
+              <button onclick="resetCounter(${u.id})">Azzera contatore</button>
+              ${
+                u.blocked
+                  ? `<button onclick="unblockUser(${u.id})">Sblocca</button>`
+                  : `<button onclick="blockUser(${u.id})">Blocca</button>`
+              }
+              <button class="danger" onclick="deleteUser(${u.id})">Elimina</button>
+            </td>
+          </tr>`;
+      })
+      .join("");
+  }
+
+  function renderLogs(logs) {
+    const tbody = document.getElementById("logs-tbody");
+    tbody.innerHTML = logs
+      .map(
+        (l) => `
+      <tr>
+        <td>${escapeHtml(l.nome || "")} ${escapeHtml(l.cognome || "")}<br><span style="color:var(--muted); font-size:11px;">${escapeHtml(l.qualifica || "")}</span></td>
+        <td>${escapeHtml(l.domanda)}</td>
+        <td>${escapeHtml((l.risposta || "").slice(0, 300))}</td>
+        <td>${escapeHtml(l.timestamp)}</td>
+      </tr>`
+      )
+      .join("");
+  }
+
+  async function resetCounter(id) {
+    await api(`/api/admin/users/${id}/reset-counter`, { method: "POST" });
+    loadAll();
+  }
+  async function blockUser(id) {
+    await api(`/api/admin/users/${id}/block`, { method: "POST" });
+    loadAll();
+  }
+  async function unblockUser(id) {
+    await api(`/api/admin/users/${id}/unblock`, { method: "POST" });
+    loadAll();
+  }
+  async function deleteUser(id) {
+    if (!confirm("Eliminare definitivamente questo utente e la sua cronologia?")) return;
+    await api(`/api/admin/users/${id}`, { method: "DELETE" });
+    loadAll();
+  }
+  async function addUser() {
+    const password = document.getElementById("new-password").value.trim();
+    const nome = document.getElementById("new-nome").value.trim();
+    const cognome = document.getElementById("new-cognome").value.trim();
+    const msgEl = document.getElementById("add-user-msg");
+    msgEl.textContent = "";
+    if (!password) {
+      msgEl.style.color = "var(--danger)";
+      msgEl.textContent = "Inserisci una password.";
+      return;
+    }
+    try {
+      await api("/api/admin/users", { method: "POST", body: JSON.stringify({ password, nome, cognome }) });
+      msgEl.style.color = "#22682B";
+      msgEl.textContent = "Utente creato.";
+      document.getElementById("new-password").value = "";
+      document.getElementById("new-nome").value = "";
+      document.getElementById("new-cognome").value = "";
+      loadAll();
+    } catch (err) {
+      msgEl.style.color = "var(--danger)";
+      msgEl.textContent = err.message;
+    }
+  }
+
+  // login automatico se password già salvata in sessione
+  if (adminPassword) {
+    document.getElementById("admin-password").value = adminPassword;
+    doLogin();
+  }
+</script>
+
+</body>
+</html>
