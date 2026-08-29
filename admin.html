@@ -117,7 +117,7 @@
       <table>
         <thead>
           <tr>
-            <th>Codice di accesso</th><th>Domande (mese)</th><th>Stato</th><th>Ultimo accesso</th><th></th>
+            <th>Società</th><th>Codice di accesso</th><th>Domande (mese)</th><th>Stato</th><th>Ultimo accesso</th><th></th>
           </tr>
         </thead>
         <tbody id="users-tbody"></tbody>
@@ -140,6 +140,10 @@
         <div class="field">
           <label>Codice di accesso</label>
           <input type="text" id="new-password" placeholder="es. societa2026" />
+        </div>
+        <div class="field">
+          <label>Nome società</label>
+          <input type="text" id="new-societa" placeholder="es. Pallavolo Ancona" />
         </div>
         <button class="btn" onclick="addUser()">Crea codice</button>
       </div>
@@ -236,6 +240,7 @@
         else if (u.question_count >= 50) statusPill = '<span class="pill warn">limite raggiunto</span>';
         return `
           <tr>
+            <td>${u.societa ? escapeHtml(u.societa) : "<em>—</em>"}</td>
             <td><code>${escapeHtml(u.password)}</code></td>
             <td>${u.question_count} / 50</td>
             <td>${statusPill}</td>
@@ -299,6 +304,7 @@
   }
   async function addUser() {
     const password = document.getElementById("new-password").value.trim();
+    const societa = document.getElementById("new-societa").value.trim();
     const msgEl = document.getElementById("add-user-msg");
     msgEl.textContent = "";
     if (!password) {
@@ -307,10 +313,11 @@
       return;
     }
     try {
-      await api("/api/admin/users", { method: "POST", body: JSON.stringify({ password }) });
+      await api("/api/admin/users", { method: "POST", body: JSON.stringify({ password, societa }) });
       msgEl.style.color = "#22682B";
       msgEl.textContent = "Codice creato.";
       document.getElementById("new-password").value = "";
+      document.getElementById("new-societa").value = "";
       loadAll();
     } catch (err) {
       msgEl.style.color = "var(--danger)";
