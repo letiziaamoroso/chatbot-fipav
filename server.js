@@ -253,7 +253,7 @@ app.post("/api/chat", requireSession, async (req, res) => {
     return res.status(403).json({ error: `Questo accesso è stato bloccato. Contatta il Comitato scrivendo a ${CONTACT_EMAIL}.` });
   }
   if (user.question_count >= MAX_QUESTIONS_PER_MONTH) {
-    setBlocked(user.id, true);
+    setBlocked(user.id, true, "limite");
     return res.status(429).json({
       error: `Hai raggiunto il limite di ${MAX_QUESTIONS_PER_MONTH} domande e il tuo accesso è stato bloccato automaticamente. Contatta il Comitato scrivendo a ${CONTACT_EMAIL} per sbloccarlo.`,
     });
@@ -265,7 +265,7 @@ app.post("/api/chat", requireSession, async (req, res) => {
     addLog(user.id, req.session.nome, req.session.cognome, req.session.qualifica, domanda.trim(), risposta);
     const newCount = user.question_count + 1;
     if (newCount >= MAX_QUESTIONS_PER_MONTH) {
-      setBlocked(user.id, true);
+      setBlocked(user.id, true, "limite");
     }
     const remaining = Math.max(0, MAX_QUESTIONS_PER_MONTH - newCount);
     res.json({ risposta, remaining });
@@ -313,7 +313,7 @@ app.post("/api/admin/users/:id/reset-counter", requireAdmin, (req, res) => {
 });
 
 app.post("/api/admin/users/:id/block", requireAdmin, (req, res) => {
-  setBlocked(req.params.id, true);
+  setBlocked(req.params.id, true, "manuale");
   res.json({ ok: true });
 });
 
