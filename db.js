@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
   question_count INTEGER NOT NULL DEFAULT 0,
   count_month TEXT,                 -- formato 'YYYY-MM', mese a cui si riferisce question_count
   blocked INTEGER NOT NULL DEFAULT 0, -- blocco (manuale o automatico al raggiungimento del limite)
+  blocked_reason TEXT,                -- 'limite' oppure 'manuale', null se non bloccato
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_login TEXT
 );
@@ -54,6 +55,7 @@ for (const stmt of [
   "ALTER TABLE users ADD COLUMN societa TEXT",
   "ALTER TABLE users ADD COLUMN codice_societa TEXT",
   "ALTER TABLE logs ADD COLUMN faq INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE users ADD COLUMN blocked_reason TEXT",
 ]) {
   try {
     db.exec(stmt);
@@ -122,8 +124,12 @@ function resetCounter(id) {
   db.prepare("UPDATE users SET question_count = 0, count_month = ? WHERE id = ?").run(currentMonth(), id);
 }
 
-function setBlocked(id, blocked) {
-  db.prepare("UPDATE users SET blocked = ? WHERE id = ?").run(blocked ? 1 : 0, id);
+function setBlocked(id, blocked, reason = null) {
+  db.prepare("UPDATE users SET blocked = ?, blocked_reason = ? WHERE id = ?").run(
+    blocked ? 1 : 0,
+    blocked ? reason : null,
+    id
+  );
 }
 
 function updatePassword(id, newPassword) {
