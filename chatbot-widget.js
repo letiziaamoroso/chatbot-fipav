@@ -13,15 +13,21 @@
   const CONFIG = {
     API_BASE_URL: "https://IL-TUO-DOMINIO-BACKEND.example.com", // <-- URL del backend una volta pubblicato
     LOGO_URL: "https://letiziaamoroso.github.io/chatbot-fipav/logo.png",
-    BOT_NAME: "Assistente FIPAV",
-    WELCOME_TEXT: "Inserisci il codice di accesso fornito.",
+    BOT_NAME: "FIPAV MARCHE RISPONDE",
+    WELCOME_TEXT: "Inserisci la password fornita.",
     QUALIFICHE: [
-      "Atleta",
-      "Allenatore/Allenatrice",
+      "Presidente",
       "Dirigente",
-      "Arbitro",
-      "Genitore",
+      "Allenatore",
+      "Arbitro associato",
+      "Atleta",
       "Altro",
+    ],
+    ISTRUZIONI: [
+      "Questo assistente risponde basandosi solo sulla documentazione ufficiale del Comitato Regionale FIPAV Marche.",
+      "La password che hai inserito è condivisa dalla tua società: indica il tuo nome, cognome e la tua qualifica ad ogni accesso.",
+      "Puoi fare al massimo 100 domande complessive: oltre questo limite l'accesso viene bloccato automaticamente e va sbloccato dal Comitato.",
+      "Se una risposta non è disponibile nella documentazione, il chatbot te lo segnalerà e ti indicherà come contattare il Comitato.",
     ],
   };
   // ==========================================================
@@ -197,14 +203,14 @@
     return data;
   }
 
-  // ---------- Step 1: codice di accesso ----------
+  // ---------- Step 1: password ----------
   function showPasswordStep() {
     body.innerHTML = "";
     const wrap = document.createElement("div");
     wrap.innerHTML = `
       <p class="fpv-field-label">Accesso</p>
       <p class="fpv-hint" style="margin-bottom:12px;">${CONFIG.WELCOME_TEXT}</p>
-      <input type="password" class="fpv-input" id="fpv-password" placeholder="Codice di accesso" />
+      <input type="password" class="fpv-input" id="fpv-password" placeholder="Password" />
       <div class="fpv-error" id="fpv-pw-error" style="display:none;"></div>
       <button class="fpv-btn" id="fpv-pw-submit">Entra</button>
     `;
@@ -218,7 +224,7 @@
       try {
         const data = await api("/api/login", { method: "POST", body: JSON.stringify({ password }) });
         saveSession({ token: data.token });
-        showRegisterStep(data.token);
+        showInstructionsStep(data.token);
       } catch (err) {
         errEl.textContent = err.message;
         errEl.style.display = "block";
@@ -228,6 +234,24 @@
     pwInput.addEventListener("keydown", (e) => e.key === "Enter" && submit());
   }
 
+  // ---------- Step 2: istruzioni ----------
+  function showInstructionsStep(token) {
+    body.innerHTML = "";
+    const wrap = document.createElement("div");
+    const items = CONFIG.ISTRUZIONI.map((t) => `<li style="margin-bottom:8px;">${t}</li>`).join("");
+    wrap.innerHTML = `
+      <p class="fpv-field-label">Istruzioni</p>
+      <ul style="padding-left:18px; margin:0 0 16px; font-size:13px; color:#2A2A2A; line-height:1.5;">
+        ${items}
+      </ul>
+      <button class="fpv-btn" id="fpv-instr-continue">Ho capito, continua</button>
+    `;
+    body.appendChild(wrap);
+    wrap.querySelector("#fpv-instr-continue").addEventListener("click", () => {
+      showRegisterStep(token);
+    });
+  }
+
   // ---------- Step 2: nome/cognome/qualifica (sempre richiesto: il codice è condiviso) ----------
   function showRegisterStep(token) {
     body.innerHTML = "";
@@ -235,7 +259,7 @@
     const wrap = document.createElement("div");
     wrap.innerHTML = `
       <p class="fpv-field-label">I tuoi dati</p>
-      <p class="fpv-hint" style="margin-bottom:12px;">Questo codice è condiviso dalla società: indica chi sei ogni volta che accedi.</p>
+      <p class="fpv-hint" style="margin-bottom:12px;">Questa password è condivisa dalla società: indica chi sei ogni volta che accedi.</p>
       <input type="text" class="fpv-input" id="fpv-nome" placeholder="Nome" />
       <input type="text" class="fpv-input" id="fpv-cognome" placeholder="Cognome" />
       <select class="fpv-select" id="fpv-qualifica">
