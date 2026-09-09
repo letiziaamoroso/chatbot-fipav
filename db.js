@@ -12,13 +12,14 @@ CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   password TEXT UNIQUE NOT NULL,
   societa TEXT,
+  codice_societa TEXT,
   nome TEXT,
   cognome TEXT,
   qualifica TEXT,
   registered INTEGER NOT NULL DEFAULT 0,
   question_count INTEGER NOT NULL DEFAULT 0,
   count_month TEXT,                 -- formato 'YYYY-MM', mese a cui si riferisce question_count
-  blocked INTEGER NOT NULL DEFAULT 0, -- blocco manuale opzionale da pannello admin
+  blocked INTEGER NOT NULL DEFAULT 0, -- blocco (manuale o automatico al raggiungimento del limite)
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_login TEXT
 );
@@ -42,16 +43,23 @@ CREATE TABLE IF NOT EXISTS logs (
   qualifica TEXT,
   domanda TEXT NOT NULL,
   risposta TEXT,
+  faq INTEGER NOT NULL DEFAULT 0,
   timestamp TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 `);
 
-// Migrazione: se il database esisteva già prima di questa colonna, aggiungila.
-try {
-  db.exec("ALTER TABLE users ADD COLUMN societa TEXT");
-} catch (err) {
-  // colonna già presente, va bene così
+// Migrazioni: se il database esisteva già prima di queste colonne, aggiungile.
+for (const stmt of [
+  "ALTER TABLE users ADD COLUMN societa TEXT",
+  "ALTER TABLE users ADD COLUMN codice_societa TEXT",
+  "ALTER TABLE logs ADD COLUMN faq INTEGER NOT NULL DEFAULT 0",
+]) {
+  try {
+    db.exec(stmt);
+  } catch (err) {
+    // colonna già presente, va bene così
+  }
 }
 
 function currentMonth() {
@@ -93,11 +101,11 @@ function incrementQuestionCount(userId) {
   db.prepare("UPDATE users SET question_count = question_count + 1 WHERE id = ?").run(userId);
 }
 
-function addUser(password, societa = null) {
+function addUser(password, societa = null, codiceSocieta = null) {
   const stmt = db.prepare(
-    "INSERT INTO users (password, societa, count_month) VALUES (?, ?, ?)"
+    "INSERT INTO users (password, societa, codice_societa, count_month) VALUES (?, ?, ?, ?)"
   );
-  return stmt.run(password, societa, currentMonth());
+  return stmt.run(password, societa, codiceSocieta, currentMonth());
 }
 
 function listUsers() {
@@ -160,9 +168,20 @@ function addLog(userId, nome, cognome, qualifica, domanda, risposta) {
 
 function listLogs(limit = 500) {
   return db
-    .prepare(`SELECT id, user_id, nome, cognome, qualifica, domanda, risposta, timestamp
+    .prepare(`SELECT id, user_id, nome, cognome, qualifica, domanda, risposta, faq, timestamp
               FROM logs ORDER BY timestamp DESC LIMIT ?`)
     .all(limit);
+}
+
+function setLogFaq(id, faq) {
+  db.prepare("UPDATE logs SET faq = ? WHERE id = ?").run(faq ? 1 : 0, id);
+}
+
+function listFaqs() {
+  return db
+    .prepare(`SELECT id, user_id, nome, cognome, qualifica, domanda, risposta, faq, timestamp
+              FROM logs WHERE faq = 1 ORDER BY timestamp DESC`)
+    .all();
 }
 
 module.exports = {
@@ -185,4 +204,6 @@ module.exports = {
   getSession,
   addLog,
   listLogs,
+  setLogFaq,
+  listFaqs,
 };
