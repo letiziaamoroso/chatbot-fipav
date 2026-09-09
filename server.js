@@ -23,6 +23,8 @@ const {
   getSession,
   addLog,
   listLogs,
+  setLogFaq,
+  listFaqs,
 } = require("./db");
 
 const app = express();
@@ -33,7 +35,8 @@ const PORT = process.env.PORT || 3000;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "cambia-questa-password";
-const MAX_QUESTIONS_PER_MONTH = parseInt(process.env.MAX_QUESTIONS_PER_MONTH || "50", 10);
+const MAX_QUESTIONS_PER_MONTH = parseInt(process.env.MAX_QUESTIONS_PER_MONTH || "100", 10);
+const CONTACT_EMAIL = "marche@federvolley.it";
 const DOCS_DIR = path.join(__dirname, "docs");
 
 // ---------------------------------------------------------------------------
@@ -97,29 +100,37 @@ async function reloadDocs() {
   );
 }
 
-function buildSystemPrompt(relevantText) {
-  return `Sei l'assistente virtuale del Comitato Regionale FIPAV. Rispondi alle domande degli utenti ESCLUSIVAMENTE sulla base degli estratti di documentazione forniti qui sotto (selezionati automaticamente come i più pertinenti alla domanda).
+const NOT_FOUND_MARKER = "NON_TROVATO:";
+const NOT_FOUND_FINAL = "NON_TROVATO_DEFINITIVO";
+
+function buildSystemPromptRound1(relevantText) {
+  return `Sei l'assistente virtuale del Comitato Regionale FIPAV Marche. Rispondi alle domande degli utenti ESCLUSIVAMENTE sulla base degli estratti di documentazione forniti qui sotto (selezionati automaticamente come i più pertinenti alla domanda).
 
 Regole:
-- Se la risposta non si trova negli estratti forniti, di' chiaramente che non hai questa informazione e invita a scrivere una email a marche@federvolley.it per ricevere assistenza dal Comitato. Non inventare nulla.
 - Rispondi in italiano, in modo chiaro e cordiale.
-- IMPORTANTE: dai sempre una risposta completa e ben formata. Se stai elencando categorie, punti o un elenco, riportali per intero, non fermarti a metà. Se un estratto di documentazione risulta tagliato o incompleto, non riportarlo alla lettera: riformula usando solo le informazioni chiare e complete che hai a disposizione, oppure segnala che potresti non avere il quadro completo su quel punto specifico.
+- IMPORTANTE: dai sempre una risposta completa e ben formata. Se stai elencando categorie, punti o un elenco, riportali per intero, non fermarti a metà.
 - Sii conciso ma completo: rispondi a quanto viene chiesto senza lasciare frasi a metà.
+- Se la risposta NON si trova chiaramente negli estratti forniti, NON inventare nulla e NON scrivere una risposta normale. Rispondi invece ESATTAMENTE in questo formato, senza aggiungere altro testo:
+${NOT_FOUND_MARKER} <qui riscrivi la domanda originale usando la terminologia tecnica e ufficiale prevista dalla normativa/regolamenti FIPAV, per tentare una nuova ricerca più precisa>
 
 ESTRATTI DI DOCUMENTAZIONE RILEVANTI:
 ${relevantText || "(nessun estratto pertinente trovato)"}`;
 }
 
-// ---------------------------------------------------------------------------
-// Chiamata a Claude
-// ---------------------------------------------------------------------------
-async function askClaude(domanda) {
-  if (!ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY non configurata sul server.");
-  }
+function buildSystemPromptRound2(relevantText) {
+  return `Sei l'assistente virtuale del Comitato Regionale FIPAV Marche. Rispondi alle domande degli utenti ESCLUSIVAMENTE sulla base degli estratti di documentazione forniti qui sotto (selezionati automaticamente come i più pertinenti alla domanda, dopo aver riformulato la domanda con terminologia tecnica).
 
-  const { text: relevantText } = search(DOCS_INDEX, domanda, 120000, 50);
+Regole:
+- Rispondi in italiano, in modo chiaro e cordiale.
+- IMPORTANTE: dai sempre una risposta completa e ben formata. Se stai elencando categorie, punti o un elenco, riportali per intero, non fermarti a metà.
+- Sii conciso ma completo: rispondi a quanto viene chiesto senza lasciare frasi a metà.
+- Se la risposta NON si trova negli estratti forniti nemmeno questa volta, NON inventare nulla: rispondi ESATTAMENTE con la parola ${NOT_FOUND_FINAL} e nient'altro.
 
+ESTRATTI DI DOCUMENTAZIONE RILEVANTI:
+${relevantText || "(nessun estratto pertinente trovato)"}`;
+}
+
+async function callClaude(systemPrompt, domanda) {
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -129,8 +140,8 @@ async function askClaude(domanda) {
     },
     body: JSON.stringify({
       model: CLAUDE_MODEL,
-      max_tokens: 1500,
-      system: buildSystemPrompt(relevantText),
+      max_tokens: 2000,
+      system: systemPrompt,
       messages: [{ role: "user", content: domanda }],
     }),
   });
@@ -142,7 +153,36 @@ async function askClaude(domanda) {
 
   const data = await resp.json();
   const textBlock = (data.content || []).find((b) => b.type === "text");
-  return textBlock ? textBlock.text : "Non sono riuscito a generare una risposta.";
+  return textBlock ? textBlock.text.trim() : "";
+}
+
+// ---------------------------------------------------------------------------
+// Chiamata a Claude, con un secondo tentativo che riformula la domanda usando
+// terminologia tecnica/normativa se la prima ricerca non trova nulla.
+// ---------------------------------------------------------------------------
+async function askClaude(domanda) {
+  if (!ANTHROPIC_API_KEY) {
+    throw new Error("ANTHROPIC_API_KEY non configurata sul server.");
+  }
+
+  // Primo tentativo, con la domanda originale
+  const { text: relevantText1 } = search(DOCS_INDEX, domanda, 120000, 50);
+  const answer1 = await callClaude(buildSystemPromptRound1(relevantText1), domanda);
+
+  if (!answer1.startsWith(NOT_FOUND_MARKER)) {
+    return answer1;
+  }
+
+  // Secondo tentativo, con la domanda riformulata con terminologia tecnica
+  const riformulata = answer1.slice(NOT_FOUND_MARKER.length).trim() || domanda;
+  const { text: relevantText2 } = search(DOCS_INDEX, riformulata, 120000, 50);
+  const answer2 = await callClaude(buildSystemPromptRound2(relevantText2), riformulata);
+
+  if (!answer2 || answer2.includes(NOT_FOUND_FINAL)) {
+    return `Non sono riuscito a trovare questa informazione nella documentazione disponibile, nemmeno riformulando la domanda. Ti invito a scrivere a ${CONTACT_EMAIL} per ricevere assistenza dal Comitato.`;
+  }
+
+  return answer2;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,14 +212,14 @@ function requireAdmin(req, res, next) {
 // ROTTE PUBBLICHE (widget)
 // ---------------------------------------------------------------------------
 
-// 1. Login con password personale
+// 1. Login con password
 app.post("/api/login", (req, res) => {
   const { password } = req.body;
-  if (!password) return res.status(400).json({ error: "Codice di accesso mancante." });
+  if (!password) return res.status(400).json({ error: "Password mancante." });
 
   const user = getUserByPassword(password.trim());
-  if (!user) return res.status(401).json({ error: "Codice di accesso non riconosciuto." });
-  if (user.blocked) return res.status(403).json({ error: "Questo codice di accesso è stato sospeso. Contatta il Comitato scrivendo a marche@federvolley.it." });
+  if (!user) return res.status(401).json({ error: "Password non riconosciuta." });
+  if (user.blocked) return res.status(403).json({ error: `Questo accesso è stato bloccato. Contatta il Comitato scrivendo a ${CONTACT_EMAIL}.` });
 
   touchLogin(user.id);
   const token = crypto.randomBytes(24).toString("hex");
@@ -210,11 +250,12 @@ app.post("/api/chat", requireSession, async (req, res) => {
     return res.status(403).json({ error: "Completa prima i tuoi dati (nome, cognome, qualifica)." });
   }
   if (user.blocked) {
-    return res.status(403).json({ error: "Questo codice di accesso è stato sospeso. Contatta il Comitato scrivendo a marche@federvolley.it." });
+    return res.status(403).json({ error: `Questo accesso è stato bloccato. Contatta il Comitato scrivendo a ${CONTACT_EMAIL}.` });
   }
   if (user.question_count >= MAX_QUESTIONS_PER_MONTH) {
+    setBlocked(user.id, true);
     return res.status(429).json({
-      error: `Hai raggiunto il limite di ${MAX_QUESTIONS_PER_MONTH} domande per questo mese. Riprova dal mese prossimo o contatta il Comitato scrivendo a marche@federvolley.it.`,
+      error: `Hai raggiunto il limite di ${MAX_QUESTIONS_PER_MONTH} domande e il tuo accesso è stato bloccato automaticamente. Contatta il Comitato scrivendo a ${CONTACT_EMAIL} per sbloccarlo.`,
     });
   }
 
@@ -222,7 +263,11 @@ app.post("/api/chat", requireSession, async (req, res) => {
     const risposta = await askClaude(domanda.trim());
     incrementQuestionCount(user.id);
     addLog(user.id, req.session.nome, req.session.cognome, req.session.qualifica, domanda.trim(), risposta);
-    const remaining = MAX_QUESTIONS_PER_MONTH - (user.question_count + 1);
+    const newCount = user.question_count + 1;
+    if (newCount >= MAX_QUESTIONS_PER_MONTH) {
+      setBlocked(user.id, true);
+    }
+    const remaining = Math.max(0, MAX_QUESTIONS_PER_MONTH - newCount);
     res.json({ risposta, remaining });
   } catch (err) {
     console.error(err);
@@ -246,13 +291,13 @@ app.get("/api/admin/logs", requireAdmin, (req, res) => {
 });
 
 app.post("/api/admin/users", requireAdmin, (req, res) => {
-  const { password, societa } = req.body;
-  if (!password) return res.status(400).json({ error: "Codice di accesso obbligatorio." });
+  const { password, societa, codiceSocieta } = req.body;
+  if (!password) return res.status(400).json({ error: "Password obbligatoria." });
   try {
-    addUser(password.trim(), societa ? societa.trim() : null);
+    addUser(password.trim(), societa ? societa.trim() : null, codiceSocieta ? codiceSocieta.trim() : null);
     res.json({ ok: true });
   } catch (err) {
-    res.status(400).json({ error: "Codice già esistente o dati non validi." });
+    res.status(400).json({ error: "Password già esistente o dati non validi." });
   }
 });
 
@@ -263,6 +308,7 @@ app.delete("/api/admin/users/:id", requireAdmin, (req, res) => {
 
 app.post("/api/admin/users/:id/reset-counter", requireAdmin, (req, res) => {
   resetCounter(req.params.id);
+  setBlocked(req.params.id, false);
   res.json({ ok: true });
 });
 
@@ -278,12 +324,12 @@ app.post("/api/admin/users/:id/unblock", requireAdmin, (req, res) => {
 
 app.post("/api/admin/users/:id/password", requireAdmin, (req, res) => {
   const { password } = req.body;
-  if (!password || !password.trim()) return res.status(400).json({ error: "Nuovo codice obbligatorio." });
+  if (!password || !password.trim()) return res.status(400).json({ error: "Nuova password obbligatoria." });
   try {
     updatePassword(req.params.id, password.trim());
     res.json({ ok: true });
   } catch (err) {
-    res.status(400).json({ error: "Codice già in uso da un altro accesso." });
+    res.status(400).json({ error: "Password già in uso da un altro accesso." });
   }
 });
 
@@ -292,8 +338,18 @@ app.post("/api/admin/reload-docs", requireAdmin, async (req, res) => {
   res.json({ ok: true, totalChars: TOTAL_DOC_CHARS, chunks: DOCS_INDEX.chunks.length });
 });
 
+app.post("/api/admin/logs/:id/faq", requireAdmin, (req, res) => {
+  const { faq } = req.body;
+  setLogFaq(req.params.id, !!faq);
+  res.json({ ok: true });
+});
+
+app.get("/api/admin/faqs", requireAdmin, (req, res) => {
+  res.json(listFaqs());
+});
+
 app.get("/api/health", (req, res) =>
-  res.json({ ok: true, totalDocChars: TOTAL_DOC_CHARS, chunks: DOCS_INDEX.chunks.length })
+  res.json({ ok: true, totalDocChars: TOTAL_DOC_CHARS, chunks: DOCS_INDEX.chunks.length, maxQuestionsPerMonth: MAX_QUESTIONS_PER_MONTH })
 );
 
 async function start() {
