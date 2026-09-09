@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Pannello Chatbot FIPAV</title>
+<title>Pannello di controllo — FIPAV Marche Risponde</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root {
     --navy: #16305C;
@@ -26,7 +27,7 @@
   }
   header h1 { font-size: 18px; margin: 0; font-weight: 700; }
   header .sub { font-size: 12px; opacity: 0.7; }
-  main { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+  main { max-width: 1200px; margin: 0 auto; padding: 28px 20px 60px; }
 
   #login-screen { max-width: 340px; margin: 90px auto; text-align: center; }
   #login-screen input {
@@ -40,7 +41,7 @@
   #login-screen button:hover, .btn:hover { filter: brightness(1.05); }
   #login-error { color: var(--danger); font-size: 13px; min-height: 18px; }
 
-  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
   .tab-btn {
     background: #fff; border: 1.5px solid var(--line); padding: 8px 16px; border-radius: 20px;
     cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted);
@@ -48,7 +49,7 @@
   .tab-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
 
   .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-  .card h2 { font-size: 15px; margin: 0 0 14px; }
+  .card h2 { font-size: 15px; margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -60,13 +61,16 @@
   .pill.ok { background: #E3F0E5; color: #22682B; }
   .pill.warn { background: #FCE9CF; color: #935A15; }
   .pill.blocked { background: #FBE2E0; color: var(--danger); }
+  .pill.faq { background: #E6EEF9; color: var(--navy); }
 
+  .row-actions { white-space: nowrap; }
   .row-actions button {
     background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px;
-    font-size: 11.5px; cursor: pointer; margin-right: 4px; color: var(--text);
+    font-size: 11.5px; cursor: pointer; margin-right: 4px; margin-bottom: 4px; color: var(--text);
   }
   .row-actions button:hover { border-color: var(--navy); }
   .row-actions button.danger { color: var(--danger); border-color: #F3CFCB; }
+  .row-actions button.faq-active { background: var(--navy); color: #fff; border-color: var(--navy); }
 
   .add-user-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
   .add-user-form .field { display: flex; flex-direction: column; gap: 4px; }
@@ -82,12 +86,13 @@
   .stat-box .label { font-size: 11.5px; color: var(--muted); }
 
   .hidden { display: none !important; }
+  .risposta-cell { max-width: 420px; white-space: pre-wrap; }
 </style>
 </head>
 <body>
 
 <div id="login-screen">
-  <h1 style="color:var(--navy);">Pannello Chatbot FIPAV</h1>
+  <h1 style="color:var(--navy);">Pannello di controllo<br/>FIPAV Marche Risponde</h1>
   <p style="color:var(--muted); font-size: 13px;">Inserisci la password amministratore per accedere.</p>
   <input type="password" id="admin-password" placeholder="Password amministratore" />
   <div id="login-error"></div>
@@ -97,8 +102,8 @@
 <div id="dashboard" class="hidden">
   <header>
     <div>
-      <h1>Pannello di controllo — Chatbot FIPAV</h1>
-      <div class="sub">Utenti, accessi e domande</div>
+      <h1>Pannello di controllo — FIPAV Marche Risponde</h1>
+      <div class="sub">Società, accessi e domande</div>
     </div>
     <button class="btn" onclick="logout()">Esci</button>
   </header>
@@ -107,17 +112,18 @@
     <div class="stat-grid" id="stat-grid"></div>
 
     <div class="tabs">
-      <button class="tab-btn active" data-tab="users" onclick="switchTab('users')">Utenti</button>
+      <button class="tab-btn active" data-tab="users" onclick="switchTab('users')">Società</button>
       <button class="tab-btn" data-tab="logs" onclick="switchTab('logs')">Domande</button>
-      <button class="tab-btn" data-tab="add" onclick="switchTab('add')">Aggiungi utente</button>
+      <button class="tab-btn" data-tab="faqs" onclick="switchTab('faqs')">FAQ</button>
+      <button class="tab-btn" data-tab="add" onclick="switchTab('add')">Aggiungi società</button>
     </div>
 
     <div id="tab-users" class="card">
-      <h2>Elenco utenti</h2>
+      <h2>Elenco società</h2>
       <table>
         <thead>
           <tr>
-            <th>Società</th><th>Codice di accesso</th><th>Domande (mese)</th><th>Stato</th><th>Ultimo accesso</th><th></th>
+            <th>Nome società</th><th>Codice società</th><th>Password</th><th>Domande</th><th>Stato</th><th>Ultimo accesso</th><th></th>
           </tr>
         </thead>
         <tbody id="users-tbody"></tbody>
@@ -125,31 +131,52 @@
     </div>
 
     <div id="tab-logs" class="card hidden">
-      <h2>Cronologia domande</h2>
+      <h2>
+        Cronologia domande
+        <button class="btn" onclick="exportLogsToExcel()">Esporta in Excel</button>
+      </h2>
       <table>
         <thead>
-          <tr><th>Utente</th><th>Domanda</th><th>Risposta</th><th>Data/ora</th></tr>
+          <tr><th>Utente</th><th>Domanda</th><th>Risposta</th><th>Data/ora</th><th></th></tr>
         </thead>
         <tbody id="logs-tbody"></tbody>
       </table>
     </div>
 
+    <div id="tab-faqs" class="card hidden">
+      <h2>
+        Domande frequenti (FAQ)
+        <button class="btn" onclick="exportFaqsToExcel()">Esporta in Excel</button>
+      </h2>
+      <table>
+        <thead>
+          <tr><th>Domanda</th><th>Risposta</th><th>Data/ora</th><th></th></tr>
+        </thead>
+        <tbody id="faqs-tbody"></tbody>
+      </table>
+    </div>
+
     <div id="tab-add" class="card hidden">
-      <h2>Aggiungi un nuovo utente</h2>
+      <h2>Aggiungi una nuova società</h2>
       <div class="add-user-form">
-        <div class="field">
-          <label>Codice di accesso</label>
-          <input type="text" id="new-password" placeholder="es. societa2026" />
-        </div>
         <div class="field">
           <label>Nome società</label>
           <input type="text" id="new-societa" placeholder="es. Pallavolo Ancona" />
         </div>
-        <button class="btn" onclick="addUser()">Crea codice</button>
+        <div class="field">
+          <label>Codice società</label>
+          <input type="text" id="new-codice-societa" placeholder="es. AN001" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="text" id="new-password" placeholder="es. ancona2026" />
+        </div>
+        <button class="btn" onclick="addUser()">Crea società</button>
       </div>
       <p style="font-size:12px; color:var(--muted); margin-top:10px;">
-        Il codice può essere condiviso da più persone della stessa società (allenatori, dirigenti, ecc.):
-        ognuno indicherà chi è ad ogni accesso, e lo vedrai nella cronologia delle domande.
+        La password può essere condivisa da più persone della stessa società (presidente, dirigenti,
+        allenatori, ecc.): ognuno indicherà nome, cognome e qualifica ad ogni accesso, e lo vedrai
+        nella cronologia delle domande. Nome e codice società sono obbligatori.
       </p>
       <div id="add-user-msg"></div>
     </div>
@@ -159,6 +186,7 @@
 <script>
   // ==========================================================
   const API_BASE_URL = "https://chatbot-fipav-production.up.railway.app";
+  const MAX_QUESTIONS = 100;
   // ==========================================================
 
   let adminPassword = sessionStorage.getItem("fpv_admin_pw") || "";
@@ -201,7 +229,7 @@
   }
 
   function switchTab(tab) {
-    ["users", "logs", "add"].forEach((t) => {
+    ["users", "logs", "faqs", "add"].forEach((t) => {
       document.getElementById("tab-" + t).classList.toggle("hidden", t !== tab);
     });
     document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
@@ -212,22 +240,32 @@
     return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
+  let lastLogs = [];
+  let lastFaqs = [];
+
   async function loadAll() {
-    const [users, logs] = await Promise.all([api("/api/admin/users"), api("/api/admin/logs")]);
+    const [users, logs, faqs] = await Promise.all([
+      api("/api/admin/users"),
+      api("/api/admin/logs"),
+      api("/api/admin/faqs"),
+    ]);
+    lastLogs = logs;
+    lastFaqs = faqs;
     renderStats(users, logs);
     renderUsers(users);
     renderLogs(logs);
+    renderFaqs(faqs);
   }
 
   function renderStats(users, logs) {
     const totalQuestions = users.reduce((s, u) => s + (u.question_count || 0), 0);
     const blocked = users.filter((u) => u.blocked).length;
-    const atLimit = users.filter((u) => u.question_count >= 50).length;
+    const atLimit = users.filter((u) => u.question_count >= MAX_QUESTIONS).length;
     document.getElementById("stat-grid").innerHTML = `
-      <div class="stat-box"><div class="num">${users.length}</div><div class="label">Utenti totali</div></div>
-      <div class="stat-box"><div class="num">${totalQuestions}</div><div class="label">Domande questo mese</div></div>
-      <div class="stat-box"><div class="num">${atLimit}</div><div class="label">Al limite mensile</div></div>
-      <div class="stat-box"><div class="num">${blocked}</div><div class="label">Utenti bloccati</div></div>
+      <div class="stat-box"><div class="num">${users.length}</div><div class="label">Società totali</div></div>
+      <div class="stat-box"><div class="num">${totalQuestions}</div><div class="label">Domande totali</div></div>
+      <div class="stat-box"><div class="num">${atLimit}</div><div class="label">Al limite (100)</div></div>
+      <div class="stat-box"><div class="num">${blocked}</div><div class="label">Società bloccate</div></div>
     `;
   }
 
@@ -237,16 +275,17 @@
       .map((u) => {
         let statusPill = '<span class="pill ok">attivo</span>';
         if (u.blocked) statusPill = '<span class="pill blocked">bloccato</span>';
-        else if (u.question_count >= 50) statusPill = '<span class="pill warn">limite raggiunto</span>';
+        else if (u.question_count >= MAX_QUESTIONS) statusPill = '<span class="pill warn">limite raggiunto</span>';
         return `
           <tr>
             <td>${u.societa ? escapeHtml(u.societa) : "<em>—</em>"}</td>
+            <td>${u.codice_societa ? escapeHtml(u.codice_societa) : "<em>—</em>"}</td>
             <td><code>${escapeHtml(u.password)}</code></td>
-            <td>${u.question_count} / 50</td>
+            <td>${u.question_count} / ${MAX_QUESTIONS}</td>
             <td>${statusPill}</td>
             <td>${u.last_login ? escapeHtml(u.last_login) : "mai"}</td>
             <td class="row-actions">
-              <button onclick="changePassword(${u.id})">Cambia codice</button>
+              <button onclick="changePassword(${u.id})">Cambia password</button>
               <button onclick="resetCounter(${u.id})">Azzera contatore</button>
               ${
                 u.blocked
@@ -268,11 +307,66 @@
       <tr>
         <td>${escapeHtml(l.nome || "")} ${escapeHtml(l.cognome || "")}<br><span style="color:var(--muted); font-size:11px;">${escapeHtml(l.qualifica || "")}</span></td>
         <td>${escapeHtml(l.domanda)}</td>
-        <td>${escapeHtml((l.risposta || "").slice(0, 300))}</td>
+        <td class="risposta-cell">${escapeHtml(l.risposta || "")}</td>
         <td>${escapeHtml(l.timestamp)}</td>
+        <td class="row-actions">
+          <button class="${l.faq ? 'faq-active' : ''}" onclick="toggleFaq(${l.id}, ${l.faq ? 'false' : 'true'})">
+            ${l.faq ? "Rimuovi da FAQ" : "Segna come FAQ"}
+          </button>
+        </td>
       </tr>`
       )
       .join("");
+  }
+
+  function renderFaqs(faqs) {
+    const tbody = document.getElementById("faqs-tbody");
+    if (faqs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" style="color:var(--muted);">Nessuna FAQ selezionata per ora. Vai su "Domande" e usa "Segna come FAQ".</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = faqs
+      .map(
+        (l) => `
+      <tr>
+        <td>${escapeHtml(l.domanda)}</td>
+        <td class="risposta-cell">${escapeHtml(l.risposta || "")}</td>
+        <td>${escapeHtml(l.timestamp)}</td>
+        <td class="row-actions">
+          <button onclick="toggleFaq(${l.id}, false)">Rimuovi da FAQ</button>
+        </td>
+      </tr>`
+      )
+      .join("");
+  }
+
+  async function toggleFaq(id, value) {
+    await api(`/api/admin/logs/${id}/faq`, { method: "POST", body: JSON.stringify({ faq: value }) });
+    loadAll();
+  }
+
+  function exportLogsToExcel() {
+    exportToExcel(lastLogs, "domande-fipav");
+  }
+  function exportFaqsToExcel() {
+    exportToExcel(lastFaqs, "faq-fipav");
+  }
+  function exportToExcel(rows, filenamePrefix) {
+    const data = rows.map((l) => ({
+      Nome: l.nome || "",
+      Cognome: l.cognome || "",
+      Qualifica: l.qualifica || "",
+      Domanda: l.domanda || "",
+      Risposta: l.risposta || "",
+      FAQ: l.faq ? "Sì" : "No",
+      Data: l.timestamp || "",
+    }));
+    const sheet = XLSX.utils.json_to_sheet(data);
+    sheet["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 40 }, { wch: 60 }, { wch: 6 }, { wch: 18 }];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, "Domande");
+    const dateStr = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(workbook, `${filenamePrefix}-${dateStr}.xlsx`);
   }
 
   async function resetCounter(id) {
@@ -288,7 +382,7 @@
     loadAll();
   }
   async function changePassword(id) {
-    const nuovo = prompt("Inserisci il nuovo codice di accesso:");
+    const nuovo = prompt("Inserisci la nuova password:");
     if (!nuovo || !nuovo.trim()) return;
     try {
       await api(`/api/admin/users/${id}/password`, { method: "POST", body: JSON.stringify({ password: nuovo.trim() }) });
@@ -298,26 +392,28 @@
     }
   }
   async function deleteUser(id) {
-    if (!confirm("Eliminare definitivamente questo utente e la sua cronologia?")) return;
+    if (!confirm("Eliminare definitivamente questa società e la sua cronologia?")) return;
     await api(`/api/admin/users/${id}`, { method: "DELETE" });
     loadAll();
   }
   async function addUser() {
-    const password = document.getElementById("new-password").value.trim();
     const societa = document.getElementById("new-societa").value.trim();
+    const codiceSocieta = document.getElementById("new-codice-societa").value.trim();
+    const password = document.getElementById("new-password").value.trim();
     const msgEl = document.getElementById("add-user-msg");
     msgEl.textContent = "";
-    if (!password) {
+    if (!societa || !codiceSocieta || !password) {
       msgEl.style.color = "var(--danger)";
-      msgEl.textContent = "Inserisci un codice di accesso.";
+      msgEl.textContent = "Nome società, codice società e password sono tutti obbligatori.";
       return;
     }
     try {
-      await api("/api/admin/users", { method: "POST", body: JSON.stringify({ password, societa }) });
+      await api("/api/admin/users", { method: "POST", body: JSON.stringify({ password, societa, codiceSocieta }) });
       msgEl.style.color = "#22682B";
-      msgEl.textContent = "Codice creato.";
-      document.getElementById("new-password").value = "";
+      msgEl.textContent = "Società creata.";
       document.getElementById("new-societa").value = "";
+      document.getElementById("new-codice-societa").value = "";
+      document.getElementById("new-password").value = "";
       loadAll();
     } catch (err) {
       msgEl.style.color = "var(--danger)";
