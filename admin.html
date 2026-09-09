@@ -83,7 +83,8 @@
   .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 12px; margin-bottom: 20px; }
   .stat-box { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
   .stat-box .num { font-size: 24px; font-weight: 800; color: var(--navy); }
-  .stat-box .label { font-size: 11.5px; color: var(--muted); }
+  .stat-box .label { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+  .stat-box .hint { font-size: 10.5px; color: var(--muted); margin-top: 4px; line-height: 1.3; }
 
   .hidden { display: none !important; }
   .risposta-cell { max-width: 420px; white-space: pre-wrap; }
@@ -259,13 +260,29 @@
 
   function renderStats(users, logs) {
     const totalQuestions = users.reduce((s, u) => s + (u.question_count || 0), 0);
-    const blocked = users.filter((u) => u.blocked).length;
-    const atLimit = users.filter((u) => u.question_count >= MAX_QUESTIONS).length;
+    const blocked = users.filter((u) => u.blocked);
+    const blockedByLimit = blocked.filter((u) => u.blocked_reason === "limite").length;
+    const blockedManually = blocked.filter((u) => u.blocked_reason !== "limite").length;
+    const nearLimit = users.filter((u) => !u.blocked && u.question_count >= MAX_QUESTIONS * 0.9).length;
     document.getElementById("stat-grid").innerHTML = `
-      <div class="stat-box"><div class="num">${users.length}</div><div class="label">Società totali</div></div>
-      <div class="stat-box"><div class="num">${totalQuestions}</div><div class="label">Domande totali</div></div>
-      <div class="stat-box"><div class="num">${atLimit}</div><div class="label">Al limite (100)</div></div>
-      <div class="stat-box"><div class="num">${blocked}</div><div class="label">Società bloccate</div></div>
+      <div class="stat-box">
+        <div class="num">${users.length}</div>
+        <div class="label">Società totali</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">${totalQuestions}</div>
+        <div class="label">Domande totali</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">${nearLimit}</div>
+        <div class="label">Vicine al limite</div>
+        <div class="hint">Non ancora bloccate, ma con 90+ domande su ${MAX_QUESTIONS}: rischiano di bloccarsi a breve</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">${blocked.length}</div>
+        <div class="label">Società bloccate</div>
+        <div class="hint">${blockedByLimit} per limite di ${MAX_QUESTIONS} domande raggiunto, ${blockedManually} bloccate manualmente da te</div>
+      </div>
     `;
   }
 
@@ -274,8 +291,13 @@
     tbody.innerHTML = users
       .map((u) => {
         let statusPill = '<span class="pill ok">attivo</span>';
-        if (u.blocked) statusPill = '<span class="pill blocked">bloccato</span>';
-        else if (u.question_count >= MAX_QUESTIONS) statusPill = '<span class="pill warn">limite raggiunto</span>';
+        if (u.blocked && u.blocked_reason === "limite") {
+          statusPill = '<span class="pill blocked">bloccato — limite raggiunto</span>';
+        } else if (u.blocked) {
+          statusPill = '<span class="pill blocked">bloccato manualmente</span>';
+        } else if (u.question_count >= MAX_QUESTIONS * 0.9) {
+          statusPill = '<span class="pill warn">vicino al limite</span>';
+        }
         return `
           <tr>
             <td>${u.societa ? escapeHtml(u.societa) : "<em>—</em>"}</td>
