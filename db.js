@@ -174,8 +174,11 @@ function addLog(userId, nome, cognome, qualifica, domanda, risposta) {
 
 function listLogs(limit = 500) {
   return db
-    .prepare(`SELECT id, user_id, nome, cognome, qualifica, domanda, risposta, faq, timestamp
-              FROM logs ORDER BY timestamp DESC LIMIT ?`)
+    .prepare(`SELECT logs.id, logs.user_id, users.societa, logs.nome, logs.cognome, logs.qualifica,
+                     logs.domanda, logs.risposta, logs.faq, logs.timestamp
+              FROM logs
+              LEFT JOIN users ON logs.user_id = users.id
+              ORDER BY logs.timestamp DESC LIMIT ?`)
     .all(limit);
 }
 
@@ -185,8 +188,11 @@ function setLogFaq(id, faq) {
 
 function listFaqs() {
   return db
-    .prepare(`SELECT id, user_id, nome, cognome, qualifica, domanda, risposta, faq, timestamp
-              FROM logs WHERE faq = 1 ORDER BY timestamp DESC`)
+    .prepare(`SELECT logs.id, logs.user_id, users.societa, logs.nome, logs.cognome, logs.qualifica,
+                     logs.domanda, logs.risposta, logs.faq, logs.timestamp
+              FROM logs
+              LEFT JOIN users ON logs.user_id = users.id
+              WHERE logs.faq = 1 ORDER BY logs.timestamp DESC`)
     .all();
 }
 
