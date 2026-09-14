@@ -18,6 +18,7 @@
     QUALIFICHE: [
       "Presidente",
       "Dirigente",
+      "Direttore sportivo",
       "Allenatore",
       "Arbitro associato",
       "Atleta",
