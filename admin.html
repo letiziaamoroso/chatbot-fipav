@@ -106,7 +106,10 @@
       <h1>Pannello di controllo — FIPAV Marche Risponde</h1>
       <div class="sub">Società, accessi e domande</div>
     </div>
-    <button class="btn" onclick="logout()">Esci</button>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button class="btn" onclick="reloadDocs()" id="reload-docs-btn">Ricarica documentazione</button>
+      <button class="btn" onclick="logout()">Esci</button>
+    </div>
   </header>
 
   <main>
@@ -227,6 +230,22 @@
     adminPassword = "";
     document.getElementById("dashboard").classList.add("hidden");
     document.getElementById("login-screen").classList.remove("hidden");
+  }
+
+  async function reloadDocs() {
+    const btn = document.getElementById("reload-docs-btn");
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Aggiornamento in corso...";
+    try {
+      const data = await api("/api/admin/reload-docs", { method: "POST" });
+      alert(`Documentazione aggiornata: ${data.totalChars.toLocaleString("it-IT")} caratteri, ${data.chunks} sezioni indicizzate.`);
+    } catch (err) {
+      alert("Errore durante l'aggiornamento: " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
   }
 
   function switchTab(tab) {
@@ -375,6 +394,7 @@
   }
   function exportToExcel(rows, filenamePrefix) {
     const data = rows.map((l) => ({
+      Società: l.societa || "",
       Nome: l.nome || "",
       Cognome: l.cognome || "",
       Qualifica: l.qualifica || "",
@@ -384,7 +404,7 @@
       Data: l.timestamp || "",
     }));
     const sheet = XLSX.utils.json_to_sheet(data);
-    sheet["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 40 }, { wch: 60 }, { wch: 6 }, { wch: 18 }];
+    sheet["!cols"] = [{ wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 40 }, { wch: 60 }, { wch: 6 }, { wch: 18 }];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, "Domande");
     const dateStr = new Date().toISOString().slice(0, 10);
