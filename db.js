@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
   count_month TEXT,                 -- formato 'YYYY-MM', mese a cui si riferisce question_count
   blocked INTEGER NOT NULL DEFAULT 0, -- blocco (manuale o automatico al raggiungimento del limite)
   blocked_reason TEXT,                -- 'limite' oppure 'manuale', null se non bloccato
+  is_system INTEGER NOT NULL DEFAULT 0, -- 1 = utente tecnico nascosto (es. per FAQ create manualmente), mai usabile per login
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_login TEXT
 );
@@ -56,6 +57,7 @@ for (const stmt of [
   "ALTER TABLE users ADD COLUMN codice_societa TEXT",
   "ALTER TABLE logs ADD COLUMN faq INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE users ADD COLUMN blocked_reason TEXT",
+  "ALTER TABLE users ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0",
 ]) {
   try {
     db.exec(stmt);
@@ -71,7 +73,7 @@ function currentMonth() {
 
 // ---------- UTENTI ----------
 function getUserByPassword(password) {
-  return db.prepare("SELECT * FROM users WHERE password = ?").get(password);
+  return db.prepare("SELECT * FROM users WHERE password = ? AND is_system = 0").get(password);
 }
 
 function getUserById(id) {
@@ -111,7 +113,7 @@ function addUser(password, societa = null, codiceSocieta = null) {
 }
 
 function listUsers() {
-  return db.prepare("SELECT * FROM users ORDER BY created_at DESC").all();
+  return db.prepare("SELECT * FROM users WHERE is_system = 0 ORDER BY created_at DESC").all();
 }
 
 function deleteUser(id) {
@@ -166,10 +168,27 @@ function getSession(token) {
 }
 
 // ---------- LOG DOMANDE ----------
-function addLog(userId, nome, cognome, qualifica, domanda, risposta) {
+function addLog(userId, nome, cognome, qualifica, domanda, risposta, faq = 0) {
   db.prepare(
-    "INSERT INTO logs (user_id, nome, cognome, qualifica, domanda, risposta) VALUES (?, ?, ?, ?, ?, ?)"
-  ).run(userId, nome, cognome, qualifica, domanda, risposta);
+    "INSERT INTO logs (user_id, nome, cognome, qualifica, domanda, risposta, faq) VALUES (?, ?, ?, ?, ?, ?, ?)"
+  ).run(userId, nome, cognome, qualifica, domanda, risposta, faq ? 1 : 0);
+}
+
+// Utente tecnico nascosto, usato solo come "proprietario" delle FAQ create
+// manualmente dal pannello (senza che siano legate a una vera domanda di un utente).
+function getOrCreateSystemUser() {
+  let u = db.prepare("SELECT * FROM users WHERE is_system = 1 LIMIT 1").get();
+  if (u) return u;
+  const password = "sys_" + Math.random().toString(36).slice(2) + Date.now();
+  db.prepare(
+    "INSERT INTO users (password, is_system, count_month) VALUES (?, 1, ?)"
+  ).run(password, currentMonth());
+  return db.prepare("SELECT * FROM users WHERE is_system = 1 LIMIT 1").get();
+}
+
+function addManualFaq(domanda, risposta) {
+  const sysUser = getOrCreateSystemUser();
+  addLog(sysUser.id, null, null, "Admin", domanda, risposta, 1);
 }
 
 function listLogs(limit = 500) {
@@ -188,7 +207,7 @@ function setLogFaq(id, faq) {
 
 function listFaqs() {
   return db
-    .prepare(`SELECT logs.id, logs.user_id, users.societa, logs.nome, logs.cognome, logs.qualifica,
+    .prepare(`SELECT logs.id, logs.user_id, users.societa, users.codice_societa, logs.nome, logs.cognome, logs.qualifica,
                      logs.domanda, logs.risposta, logs.faq, logs.timestamp
               FROM logs
               LEFT JOIN users ON logs.user_id = users.id
@@ -218,4 +237,5 @@ module.exports = {
   listLogs,
   setLogFaq,
   listFaqs,
+  addManualFaq,
 };
