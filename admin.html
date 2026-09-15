@@ -118,7 +118,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="users" onclick="switchTab('users')">Società</button>
       <button class="tab-btn" data-tab="logs" onclick="switchTab('logs')">Domande</button>
-      <button class="tab-btn" data-tab="faqs" onclick="switchTab('faqs')">FAQ</button>
+      <button class="tab-btn" data-tab="faqs" onclick="switchTab('faqs')">FAQ - Domande frequenti</button>
       <button class="tab-btn" data-tab="add" onclick="switchTab('add')">Aggiungi società</button>
     </div>
 
@@ -149,9 +149,23 @@
 
     <div id="tab-faqs" class="card hidden">
       <h2>
-        Domande frequenti (FAQ)
+        FAQ - Domande frequenti
         <button class="btn" onclick="exportFaqsToExcel()">Esporta in Excel</button>
       </h2>
+
+      <div class="add-user-form" style="align-items:flex-start; margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid var(--line);">
+        <div class="field" style="flex:1; min-width:260px;">
+          <label>Nuova domanda</label>
+          <input type="text" id="new-faq-domanda" placeholder="es. Come mi iscrivo al campionato?" />
+        </div>
+        <div class="field" style="flex:2; min-width:320px;">
+          <label>Risposta</label>
+          <input type="text" id="new-faq-risposta" placeholder="La risposta da mostrare nella FAQ" />
+        </div>
+        <button class="btn" onclick="addManualFaq()">Aggiungi FAQ</button>
+      </div>
+      <div id="add-faq-msg" style="font-size:12.5px; margin:-8px 0 14px;"></div>
+
       <table>
         <thead>
           <tr><th>Domanda</th><th>Risposta</th><th>Data/ora</th><th></th></tr>
@@ -363,7 +377,7 @@
   function renderFaqs(faqs) {
     const tbody = document.getElementById("faqs-tbody");
     if (faqs.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" style="color:var(--muted);">Nessuna FAQ selezionata per ora. Vai su "Domande" e usa "Segna come FAQ".</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4" style="color:var(--muted);">Nessuna FAQ presente per ora. Aggiungine una qui sopra, oppure vai su "Domande" e usa "Segna come FAQ".</td></tr>`;
       return;
     }
     tbody.innerHTML = faqs
@@ -386,14 +400,31 @@
     loadAll();
   }
 
+  async function addManualFaq() {
+    const domanda = document.getElementById("new-faq-domanda").value.trim();
+    const risposta = document.getElementById("new-faq-risposta").value.trim();
+    const msgEl = document.getElementById("add-faq-msg");
+    msgEl.textContent = "";
+    if (!domanda || !risposta) {
+      msgEl.style.color = "var(--danger)";
+      msgEl.textContent = "Domanda e risposta sono entrambe obbligatorie.";
+      return;
+    }
+    try {
+      await api("/api/admin/faqs", { method: "POST", body: JSON.stringify({ domanda, risposta }) });
+      msgEl.style.color = "#22682B";
+      msgEl.textContent = "FAQ aggiunta.";
+      document.getElementById("new-faq-domanda").value = "";
+      document.getElementById("new-faq-risposta").value = "";
+      loadAll();
+    } catch (err) {
+      msgEl.style.color = "var(--danger)";
+      msgEl.textContent = err.message;
+    }
+  }
+
   function exportLogsToExcel() {
-    exportToExcel(lastLogs, "domande-fipav");
-  }
-  function exportFaqsToExcel() {
-    exportToExcel(lastFaqs, "faq-fipav");
-  }
-  function exportToExcel(rows, filenamePrefix) {
-    const data = rows.map((l) => ({
+    const data = lastLogs.map((l) => ({
       Società: l.societa || "",
       Nome: l.nome || "",
       Cognome: l.cognome || "",
@@ -403,8 +434,26 @@
       FAQ: l.faq ? "Sì" : "No",
       Data: l.timestamp || "",
     }));
+    writeExcelFile(data, [18, 14, 14, 16, 40, 60, 6, 18], "domande-fipav");
+  }
+
+  function exportFaqsToExcel() {
+    const data = lastFaqs.map((l) => ({
+      "Codice Società": l.codice_societa || "",
+      Società: l.societa || "",
+      Nome: l.nome || "",
+      Cognome: l.cognome || "",
+      Qualifica: l.qualifica || "",
+      Domanda: l.domanda || "",
+      Risposta: l.risposta || "",
+      Data: l.timestamp || "",
+    }));
+    writeExcelFile(data, [16, 18, 14, 14, 16, 40, 60, 18], "faq-fipav");
+  }
+
+  function writeExcelFile(data, colWidths, filenamePrefix) {
     const sheet = XLSX.utils.json_to_sheet(data);
-    sheet["!cols"] = [{ wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 40 }, { wch: 60 }, { wch: 6 }, { wch: 18 }];
+    sheet["!cols"] = colWidths.map((wch) => ({ wch }));
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, "Domande");
     const dateStr = new Date().toISOString().slice(0, 10);
