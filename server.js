@@ -25,6 +25,7 @@ const {
   listLogs,
   setLogFaq,
   listFaqs,
+  addManualFaq,
 } = require("./db");
 
 const app = express();
@@ -101,9 +102,9 @@ async function reloadDocs() {
 }
 
 const NOT_FOUND_MARKER = "NON_TROVATO:";
-const NOT_FOUND_FINAL = "NON_TROVATO_DEFINITIVO";
+const MAX_REFORMULATIONS = 3; // tentativi di riformulazione oltre alla domanda originale
 
-function buildSystemPromptRound1(relevantText) {
+function buildSystemPrompt(relevantText) {
   return `Sei l'assistente virtuale del Comitato Regionale FIPAV Marche. Rispondi alle domande degli utenti ESCLUSIVAMENTE sulla base degli estratti di documentazione forniti qui sotto (selezionati automaticamente come i più pertinenti alla domanda).
 
 Regole:
@@ -111,20 +112,7 @@ Regole:
 - IMPORTANTE: dai sempre una risposta completa e ben formata. Se stai elencando categorie, punti o un elenco, riportali per intero, non fermarti a metà.
 - Sii conciso ma completo: rispondi a quanto viene chiesto senza lasciare frasi a metà.
 - Se la risposta NON si trova chiaramente negli estratti forniti, NON inventare nulla e NON scrivere una risposta normale. Rispondi invece ESATTAMENTE in questo formato, senza aggiungere altro testo:
-${NOT_FOUND_MARKER} <qui riscrivi la domanda originale usando la terminologia tecnica e ufficiale prevista dalla normativa/regolamenti FIPAV, per tentare una nuova ricerca più precisa>
-
-ESTRATTI DI DOCUMENTAZIONE RILEVANTI:
-${relevantText || "(nessun estratto pertinente trovato)"}`;
-}
-
-function buildSystemPromptRound2(relevantText) {
-  return `Sei l'assistente virtuale del Comitato Regionale FIPAV Marche. Rispondi alle domande degli utenti ESCLUSIVAMENTE sulla base degli estratti di documentazione forniti qui sotto (selezionati automaticamente come i più pertinenti alla domanda, dopo aver riformulato la domanda con terminologia tecnica).
-
-Regole:
-- Rispondi in italiano, in modo chiaro e cordiale.
-- IMPORTANTE: dai sempre una risposta completa e ben formata. Se stai elencando categorie, punti o un elenco, riportali per intero, non fermarti a metà.
-- Sii conciso ma completo: rispondi a quanto viene chiesto senza lasciare frasi a metà.
-- Se la risposta NON si trova negli estratti forniti nemmeno questa volta, NON inventare nulla: rispondi ESATTAMENTE con la parola ${NOT_FOUND_FINAL} e nient'altro.
+${NOT_FOUND_MARKER} <qui riscrivi la domanda in modo più chiaro e dettagliato, usando la terminologia tecnica e ufficiale prevista dalla normativa/regolamenti FIPAV, per tentare una nuova ricerca più precisa>
 
 ESTRATTI DI DOCUMENTAZIONE RILEVANTI:
 ${relevantText || "(nessun estratto pertinente trovato)"}`;
@@ -157,32 +145,31 @@ async function callClaude(systemPrompt, domanda) {
 }
 
 // ---------------------------------------------------------------------------
-// Chiamata a Claude, con un secondo tentativo che riformula la domanda usando
-// terminologia tecnica/normativa se la prima ricerca non trova nulla.
+// Chiamata a Claude. Se la prima ricerca non trova la risposta, il sistema
+// prova a riformulare la domanda con terminologia tecnica/normativa fino a
+// MAX_REFORMULATIONS volte, prima di indirizzare l'utente via email.
 // ---------------------------------------------------------------------------
 async function askClaude(domanda) {
   if (!ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY non configurata sul server.");
   }
 
-  // Primo tentativo, con la domanda originale
-  const { text: relevantText1 } = search(DOCS_INDEX, domanda, 120000, 50);
-  const answer1 = await callClaude(buildSystemPromptRound1(relevantText1), domanda);
+  let currentQuery = domanda;
 
-  if (!answer1.startsWith(NOT_FOUND_MARKER)) {
-    return answer1;
+  for (let attempt = 0; attempt <= MAX_REFORMULATIONS; attempt++) {
+    const { text: relevantText } = search(DOCS_INDEX, currentQuery, 120000, 50);
+    const answer = await callClaude(buildSystemPrompt(relevantText), currentQuery);
+
+    if (!answer.startsWith(NOT_FOUND_MARKER)) {
+      return answer;
+    }
+
+    const reformulated = answer.slice(NOT_FOUND_MARKER.length).trim();
+    if (!reformulated) break; // il modello non ha proposto una riformulazione: inutile continuare
+    currentQuery = reformulated;
   }
 
-  // Secondo tentativo, con la domanda riformulata con terminologia tecnica
-  const riformulata = answer1.slice(NOT_FOUND_MARKER.length).trim() || domanda;
-  const { text: relevantText2 } = search(DOCS_INDEX, riformulata, 120000, 50);
-  const answer2 = await callClaude(buildSystemPromptRound2(relevantText2), riformulata);
-
-  if (!answer2 || answer2.includes(NOT_FOUND_FINAL)) {
-    return `Non sono riuscito a trovare questa informazione nella documentazione disponibile, nemmeno riformulando la domanda. Ti invito a scrivere a ${CONTACT_EMAIL} per ricevere assistenza dal Comitato.`;
-  }
-
-  return answer2;
+  return `Non sono riuscito a trovare questa informazione nella documentazione disponibile, nemmeno dopo aver riformulato la domanda più volte con terminologia tecnica. Ti invito a scrivere a ${CONTACT_EMAIL} per ricevere assistenza dal Comitato.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -346,6 +333,15 @@ app.post("/api/admin/logs/:id/faq", requireAdmin, (req, res) => {
 
 app.get("/api/admin/faqs", requireAdmin, (req, res) => {
   res.json(listFaqs());
+});
+
+app.post("/api/admin/faqs", requireAdmin, (req, res) => {
+  const { domanda, risposta } = req.body;
+  if (!domanda || !domanda.trim() || !risposta || !risposta.trim()) {
+    return res.status(400).json({ error: "Domanda e risposta sono entrambe obbligatorie." });
+  }
+  addManualFaq(domanda.trim(), risposta.trim());
+  res.json({ ok: true });
 });
 
 app.get("/api/health", (req, res) =>
