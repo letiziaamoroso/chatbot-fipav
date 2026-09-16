@@ -312,6 +312,7 @@
     const blockedByLimit = blocked.filter((u) => u.blocked_reason === "limite").length;
     const blockedManually = blocked.filter((u) => u.blocked_reason !== "limite").length;
     const nearLimit = users.filter((u) => !u.blocked && u.question_count >= MAX_QUESTIONS * 0.9).length;
+    const nearLimitThreshold = Math.ceil(MAX_QUESTIONS * 0.9);
     document.getElementById("stat-grid").innerHTML = `
       <div class="stat-box">
         <div class="num">${users.length}</div>
@@ -324,7 +325,7 @@
       <div class="stat-box">
         <div class="num">${nearLimit}</div>
         <div class="label">Vicine al limite</div>
-        <div class="hint">Non ancora bloccate, ma con 90+ domande su ${MAX_QUESTIONS}: rischiano di bloccarsi a breve</div>
+        <div class="hint">Non ancora bloccate, ma con ${nearLimitThreshold}+ domande su ${MAX_QUESTIONS}: rischiano di bloccarsi a breve</div>
       </div>
       <div class="stat-box">
         <div class="num">${blocked.length}</div>
