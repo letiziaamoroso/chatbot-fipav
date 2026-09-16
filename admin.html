@@ -204,7 +204,7 @@
 <script>
   // ==========================================================
   const API_BASE_URL = "https://chatbot-fipav-production.up.railway.app";
-  const MAX_QUESTIONS = 100;
+  let MAX_QUESTIONS = 100; // valore di riserva, viene sostituito da quello reale del server
   // ==========================================================
 
   let adminPassword = sessionStorage.getItem("fpv_admin_pw") || "";
@@ -233,9 +233,22 @@
       sessionStorage.setItem("fpv_admin_pw", pw);
       document.getElementById("login-screen").classList.add("hidden");
       document.getElementById("dashboard").classList.remove("hidden");
+      await refreshMaxQuestions();
       loadAll();
     } catch (err) {
       errEl.textContent = "Password errata.";
+    }
+  }
+
+  async function refreshMaxQuestions() {
+    try {
+      const resp = await fetch(API_BASE_URL + "/api/health");
+      const data = await resp.json();
+      if (data && data.maxQuestionsPerMonth) {
+        MAX_QUESTIONS = data.maxQuestionsPerMonth;
+      }
+    } catch (err) {
+      // se fallisce, resta il valore di riserva (100)
     }
   }
 
@@ -253,6 +266,8 @@
     btn.textContent = "Aggiornamento in corso...";
     try {
       const data = await api("/api/admin/reload-docs", { method: "POST" });
+      await refreshMaxQuestions();
+      loadAll();
       alert(`Documentazione aggiornata: ${data.totalChars.toLocaleString("it-IT")} caratteri, ${data.chunks} sezioni indicizzate.`);
     } catch (err) {
       alert("Errore durante l'aggiornamento: " + err.message);
