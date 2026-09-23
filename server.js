@@ -49,6 +49,24 @@ const DOCS_DIR = path.join(__dirname, "docs");
 const mammoth = require("mammoth");
 const { buildIndex, search } = require("./retrieval");
 
+// Nomi "leggibili" mostrati nelle citazioni delle fonti, al posto del nome
+// tecnico del file. Se un nuovo documento viene aggiunto senza essere elencato
+// qui, si usa comunque il suo nome file cosi' come si presenta (nessun errore).
+const DISPLAY_NAMES = {
+  "istituzionali.docx": "Documenti Istituzionali (Statuto, Regolamenti, Normativa federale)",
+  "regionale.docx": "Documentazione del Comitato Regionale Marche (circolari, formule campionati)",
+  "guida_pratica_indoor.docx": "Guida Pratica Campionati Indoor",
+  "guida_pratica_scuola_promozione.docx": "Guida Pratica Scuola e Promozione (Minivolley/S3)",
+  "beach_volley_guida_pratica.docx": "Guida Pratica Beach Volley",
+  "regole gioco beach ridotto.docx": "Regolamento di Gioco - Beach Volley",
+  "regole gioco indoor ridotto.docx": "Regolamento di Gioco - Pallavolo Indoor",
+  "regole gioco sittin.docx": "Regolamento di Gioco - Sitting Volley",
+};
+
+function displayNameFor(relativeName) {
+  return DISPLAY_NAMES[relativeName] || relativeName;
+}
+
 async function loadDocuments() {
   if (!fs.existsSync(DOCS_DIR)) return [];
 
@@ -83,7 +101,7 @@ async function loadDocuments() {
       content = fs.readFileSync(filePath, "utf-8");
     }
     if (content && content.trim()) {
-      documents.push({ name: relativeName, content });
+      documents.push({ name: displayNameFor(relativeName), content });
     }
   }
   return documents;
@@ -107,11 +125,17 @@ const MAX_REFORMULATIONS = 3; // tentativi di riformulazione oltre alla domanda 
 function buildSystemPrompt(relevantText) {
   return `Sei l'assistente virtuale del Comitato Regionale FIPAV Marche. Rispondi alle domande degli utenti ESCLUSIVAMENTE sulla base degli estratti di documentazione forniti qui sotto (selezionati automaticamente come i più pertinenti alla domanda).
 
+Gli estratti sono organizzati in blocchi preceduti da un'intestazione del tipo:
+===== DOCUMENTO: <nome documento> | SEZIONE: <nome sezione o "generale"> =====
+
 Regole:
 - Rispondi in italiano, in modo chiaro e cordiale.
 - IMPORTANTE: dai sempre una risposta completa e ben formata. Se stai elencando categorie, punti o un elenco, riportali per intero, non fermarti a metà.
 - Sii conciso ma completo: rispondi a quanto viene chiesto senza lasciare frasi a metà.
-- Se la risposta NON si trova chiaramente negli estratti forniti, NON inventare nulla e NON scrivere una risposta normale. Rispondi invece ESATTAMENTE in questo formato, senza aggiungere altro testo:
+- CITAZIONE DELLA FONTE (obbligatoria in ogni risposta che non sia NON_TROVATO): alla fine della risposta aggiungi sempre una riga separata che inizia con "Fonte:" seguita dal/i nome/i di DOCUMENTO e, quando la SEZIONE non è "generale", anche dalla SEZIONE, copiati esattamente come compaiono nell'intestazione del blocco da cui hai preso l'informazione. Se hai usato più blocchi, elenca tutte le fonti separate da un punto e virgola. Esempi:
+  Fonte: Documenti Istituzionali (Statuto, Regolamenti, Normativa federale) — Regolamento Affiliazione e Tesseramento 2024
+  Fonte: Guida Pratica Campionati Indoor — Guida pratica_Allenatori_2627; Documenti Istituzionali (Statuto, Regolamenti, Normativa federale) — Statuto FIPAV - 2025 - definitivo
+- Se la risposta NON si trova chiaramente negli estratti forniti, NON inventare nulla e NON scrivere una risposta normale (e in questo caso NON aggiungere la riga "Fonte:"). Rispondi invece ESATTAMENTE in questo formato, senza aggiungere altro testo:
 ${NOT_FOUND_MARKER} <qui riscrivi la domanda in modo più chiaro e dettagliato, usando la terminologia tecnica e ufficiale prevista dalla normativa/regolamenti FIPAV, per tentare una nuova ricerca più precisa>
 
 ESTRATTI DI DOCUMENTAZIONE RILEVANTI:
