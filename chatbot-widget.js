@@ -42,7 +42,7 @@
 
   "⚠️ Condizioni di accesso e limiti di utilizzo",
 
-  "Limite di domande per società: In considerazione dei costi procedurali, è consentito un numero massimo di 200 domande complessive per ciascuna società per mese solare. Superato tale limite, l'accesso verrà bloccato automaticamente e potrà essere ripristinato solo su richiesta al COMITATO REGIONALE.",
+  "Limite di domande per società: In considerazione dei costi procedurali, è consentito un numero massimo di XXX domande complessive per ciascuna società per mese solare. Superato tale limite, l'accesso verrà bloccato automaticamente e potrà essere ripristinato solo su richiesta al COMITATO REGIONALE.",
 
   "Autenticazione e identificazione: La password di accesso è condivisa tra gli utenti appartenenti alla medesima società. Nella schermata successiva e ad ogni accesso successivo è richiesto l'inserimento di Nome, Cognome e Qualifica del richiedente.",
 
@@ -346,7 +346,7 @@ function showInstructionsStep(token) {
       <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
         <strong>Limite di domande per società:</strong>
         In considerazione dei costi procedurali, è consentito un
-        <strong>numero massimo di 200 domande complessive per ciascuna
+        <strong>numero massimo di XXX domande complessive per ciascuna
         società per mese solare</strong>.
         Superato tale limite, l'accesso verrà bloccato automaticamente
         e potrà essere ripristinato solo su richiesta al
