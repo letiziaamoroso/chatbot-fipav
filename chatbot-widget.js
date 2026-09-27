@@ -25,11 +25,29 @@
       "Altro",
     ],
     ISTRUZIONI: [
-      "Questo assistente risponde basandosi solo sulla documentazione ufficiale del Comitato Regionale FIPAV Marche.",
-      "La password che hai inserito è condivisa dalla tua società: indica il tuo nome, cognome e la tua qualifica ad ogni accesso.",
-      "Puoi fare al massimo 100 domande complessive: oltre questo limite l'accesso viene bloccato automaticamente e va sbloccato dal Comitato.",
-      "Se una risposta non è disponibile nella documentazione, il chatbot te lo segnalerà e ti indicherà come contattare il Comitato.",
-    ],
+  "Servizio di Assistenza Virtuale (chatbot)",
+  "Il servizio mette a disposizione un assistente virtuale (chatbot) progettato per rispondere ai quesiti degli utenti basandosi esclusivamente sulla DOCUMENTAZIONE UFFICIALE DEL COMITATO REGIONALE FIPAV MARCHE.",
+
+  "📌 Modalità di funzionamento e raccomandazioni d'uso",
+
+  "Argomenti già trattati: Prima di porre una nuova domanda al chatbot, si invita a consultare l'elenco delle FAQ - Domande Frequenti disponibili ed aggiornate al seguente link: [xxx Link pagina FAQ - Domande Frequenti]. In questa sezione [in aggiornamento] sono già presenti le risposte ai quesiti e dubbi più comuni.",
+
+  "Documentazione di riferimento: Il chatbot risponde soltanto su argomenti presenti nei testi ufficiali. Per la consultazione integrale o per eventuali verifiche dirette, la documentazione completa è disponibile al seguente link: [xxx Link alla pagina contenente documentazione ufficiale Comitato Reg FIPAV].",
+
+  "Formulazione dei quesiti: Si raccomanda di porre le domande in modo chiaro e dettagliato. È possibile inserire domande successive per affinare le risposte o richiedere ulteriori dettagli.",
+
+  "Valore delle risposte: Le informazioni fornite dall'assistente virtuale hanno carattere informativo. Ogni risposta va pertanto letta, compresa e verificata rispetto ai testi ufficiali presenti sul sito.",
+
+  "Argomenti non presenti: Qualora un'informazione non sia reperibile nella documentazione, il chatbot lo segnalerà e indicherà le vie alternative di contatto con il Comitato (ad esempio e-mail). Le risposte a tali richieste verranno quindi fornite necessariamente secondo tempistiche non immediate e modalità ordinarie.",
+
+  "⚠️ Condizioni di accesso e limiti di utilizzo",
+
+  "Limite di domande per società: In considerazione dei costi procedurali, è consentito un numero massimo di 200 domande complessive per ciascuna società per mese solare. Superato tale limite, l'accesso verrà bloccato automaticamente e potrà essere ripristinato solo su richiesta al COMITATO REGIONALE.",
+
+  "Autenticazione e identificazione: La password di accesso è condivisa tra gli utenti appartenenti alla medesima società. Nella schermata successiva e ad ogni accesso successivo è richiesto l'inserimento di Nome, Cognome e Qualifica del richiedente.",
+
+  "Trattamento dati e riservatezza: I dati identificativi inseriti saranno trattati nel rispetto della normativa sulla privacy al solo fine di gestire e monitorare gli accessi. Si richiede di non inserire dati personali sensibili o informazioni riservate all'interno dei testi delle domande."
+],
   };
   // ==========================================================
 
