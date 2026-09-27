@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -5,213 +6,1108 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FIPAV Marche Risponde — Test</title>
 </head>
+
 <body style="margin:0; padding:24px; background:#f5f2ea;">
+
 <div id="app" style="max-width:520px; margin:0 auto; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
 
 <style>
   #app * { box-sizing: border-box; }
-  #app .card { background:#FBF9F5; border:1px solid #E4DCCC; border-radius:16px; padding:20px; }
-  #app input, #app select {
-    width:100%; padding:10px 12px; border:1.5px solid #DDD5C7; border-radius:8px; font-size:14px; margin-bottom:10px; background:#fff;
+
+  #app .card {
+    background:#FBF9F5;
+    border:1px solid #E4DCCC;
+    border-radius:16px;
+    padding:20px;
   }
-  #app input:focus, #app select:focus { outline:none; border-color:#F2A93B; }
+
+  #app input,
+  #app select {
+    width:100%;
+    padding:10px 12px;
+    border:1.5px solid #DDD5C7;
+    border-radius:8px;
+    font-size:14px;
+    margin-bottom:10px;
+    background:#fff;
+  }
+
+  #app input:focus,
+  #app select:focus {
+    outline:none;
+    border-color:#F2A93B;
+  }
+
   #app button.primary {
-    width:100%; padding:11px; border:none; border-radius:8px; background:#F2A93B; color:#16305C;
-    font-weight:700; font-size:14px; cursor:pointer;
+    width:100%;
+    padding:11px;
+    border:none;
+    border-radius:8px;
+    background:#F2A93B;
+    color:#16305C;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
   }
-  #app button.primary:disabled { opacity:.5; cursor:not-allowed; }
-  #app button.link { background:none; border:none; color:#7A7264; font-size:12px; cursor:pointer; text-decoration:underline; margin-top:10px; }
-  #app .error { color:#B3261E; font-size:13px; margin:-4px 0 10px; }
-  #app .label { font-size:14px; font-weight:600; color:#16305C; margin-bottom:8px; }
-  #app .msg { display:flex; margin-bottom:10px; }
-  #app .msg.user { justify-content:flex-end; }
-  #app .bubble { max-width:82%; padding:9px 13px; border-radius:14px; font-size:13.5px; line-height:1.5; white-space:pre-wrap; }
-  #app .msg.user .bubble { background:#16305C; color:#fff; }
-  #app .msg.bot .bubble { background:#EFE9DD; color:#2A2A2A; }
-  #app .msg.system .bubble { color:#7A7264; font-size:12px; margin:0 auto; }
-  #app .messages { max-height:360px; overflow-y:auto; margin-bottom:10px; }
-  #app .counter { font-size:11.5px; color:#7A7264; text-align:center; margin-bottom:8px; }
-  #app .row { display:flex; gap:8px; }
-  #app .row input { margin-bottom:0; }
-  #app .send { width:42px; flex-shrink:0; border:none; border-radius:8px; background:#16305C; color:#fff; cursor:pointer; }
+
+  #app button.primary:disabled {
+    opacity:.5;
+    cursor:not-allowed;
+  }
+
+  #app button.link {
+    background:none;
+    border:none;
+    color:#7A7264;
+    font-size:12px;
+    cursor:pointer;
+    text-decoration:underline;
+    margin-top:10px;
+  }
+
+  #app .error {
+    color:#B3261E;
+    font-size:13px;
+    margin:-4px 0 10px;
+  }
+
+  #app .label {
+    font-size:14px;
+    font-weight:600;
+    color:#16305C;
+    margin-bottom:8px;
+  }
+
+  #app .msg {
+    display:flex;
+    margin-bottom:10px;
+  }
+
+  #app .msg.user {
+    justify-content:flex-end;
+  }
+
+  #app .bubble {
+    max-width:82%;
+    padding:9px 13px;
+    border-radius:14px;
+    font-size:13.5px;
+    line-height:1.5;
+    white-space:pre-wrap;
+  }
+
+  #app .msg.user .bubble {
+    background:#16305C;
+    color:#fff;
+  }
+
+  #app .msg.bot .bubble {
+    background:#EFE9DD;
+    color:#2A2A2A;
+  }
+
+  #app .msg.system .bubble {
+    color:#7A7264;
+    font-size:12px;
+    margin:0 auto;
+  }
+
+  #app .messages {
+    max-height:360px;
+    overflow-y:auto;
+    margin-bottom:10px;
+  }
+
+  #app .counter {
+    font-size:11.5px;
+    color:#7A7264;
+    text-align:center;
+    margin-bottom:8px;
+  }
+
+  #app .row {
+    display:flex;
+    gap:8px;
+  }
+
+  #app .row input {
+    margin-bottom:0;
+  }
+
+  #app .send {
+    width:42px;
+    flex-shrink:0;
+    border:none;
+    border-radius:8px;
+    background:#16305C;
+    color:#fff;
+    cursor:pointer;
+  }
+
   #app .header {
-    display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:16px;
-    background:#16305C; border-radius:12px; padding:28px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    margin-bottom:16px;
+    background:#16305C;
+    border-radius:12px;
+    padding:28px;
   }
-  #app .header img { height:64px; width:auto; display:block; }
-  #app .summary { background:#fff; border-radius:8px; padding:10px 12px; font-size:12.5px; color:#555; margin-bottom:12px; }
-  #app .apiurl { font-size:11px; color:#999; text-align:center; margin-top:16px; word-break:break-all; }
+
+  #app .header img {
+    height:64px;
+    width:auto;
+    display:block;
+  }
+
+  #app .summary {
+    background:#fff;
+    border-radius:8px;
+    padding:10px 12px;
+    font-size:12.5px;
+    color:#555;
+    margin-bottom:12px;
+  }
+
+  #app .apiurl {
+    font-size:11px;
+    color:#999;
+    text-align:center;
+    margin-top:16px;
+    word-break:break-all;
+  }
 </style>
 
+
 <div class="header">
-  <img src="https://letiziaamoroso.github.io/chatbot-fipav/logo.png" alt="Logo FIPAV" onerror="this.style.display='none'" />
+  <img
+    src="https://letiziaamoroso.github.io/chatbot-fipav/logo.png"
+    alt="Logo FIPAV"
+    onerror="this.style.display='none'"
+  />
 </div>
+
 <div class="card" id="root"></div>
+
 <div class="apiurl" id="api-url-display"></div>
 
+
 <script>
-const API_BASE_URL = "https://chatbot-fipav-production.up.railway.app";
+
+const API_BASE_URL =
+  "https://chatbot-fipav-production.up.railway.app";
 
 let sessionToken = null;
 let isRegistered = false;
+
 const root = document.getElementById("root");
-document.getElementById("api-url-display").textContent = "Collegato a: " + API_BASE_URL;
+
+document.getElementById("api-url-display").textContent =
+  "Collegato a: " + API_BASE_URL;
+
+
+/* =========================================================
+   COMUNICAZIONE CON IL BACKEND
+========================================================= */
 
 async function api(path, opts = {}) {
-  const headers = { "Content-Type": "application/json" };
-  if (sessionToken) headers["x-session-token"] = sessionToken;
-  const resp = await fetch(API_BASE_URL + path, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error(data.error || "Errore di comunicazione con il server.");
+
+  const headers = {
+    "Content-Type": "application/json"
+  };
+
+  if (sessionToken) {
+    headers["x-session-token"] = sessionToken;
+  }
+
+  const resp = await fetch(
+    API_BASE_URL + path,
+    {
+      ...opts,
+      headers: {
+        ...headers,
+        ...(opts.headers || {})
+      }
+    }
+  );
+
+  const data =
+    await resp.json().catch(() => ({}));
+
+  if (!resp.ok) {
+    throw new Error(
+      data.error ||
+      "Errore di comunicazione con il server."
+    );
+  }
+
   return data;
 }
 
-const ISTRUZIONI = [
-  "Questo assistente risponde basandosi solo sulla documentazione ufficiale del Comitato Regionale FIPAV Marche.",
-  "La password che hai inserito è condivisa dalla tua società: indica il tuo nome, cognome e la tua qualifica ad ogni accesso.",
-  "Puoi fare al massimo 100 domande complessive: oltre questo limite l'accesso viene bloccato automaticamente e va sbloccato dal Comitato.",
-  "Se una risposta non è disponibile nella documentazione, il chatbot te lo segnalerà e ti indicherà come contattare il Comitato.",
-];
+
+/* =========================================================
+   ACCESSO CON PASSWORD
+========================================================= */
 
 function renderPasswordStep() {
+
   root.innerHTML = `
-    <div class="label">Accesso</div>
-    <p style="font-size:13px; color:#7A7264; margin:0 0 10px;">Inserisci la password fornita.</p>
-    <input type="password" id="password-input" placeholder="Password" />
-    <div class="error" id="password-error" style="display:none;"></div>
-    <button class="primary" id="password-submit">Entra</button>
+
+    <div class="label">
+      Accesso
+    </div>
+
+    <p style="
+      font-size:13px;
+      color:#7A7264;
+      margin:0 0 10px;
+    ">
+      Inserisci la password fornita.
+    </p>
+
+    <input
+      type="password"
+      id="password-input"
+      placeholder="Password"
+    />
+
+    <div
+      class="error"
+      id="password-error"
+      style="display:none;">
+    </div>
+
+    <button
+      class="primary"
+      id="password-submit">
+      Entra
+    </button>
+
   `;
+
+
   const submit = async () => {
-    const pw = document.getElementById("password-input").value.trim();
-    const errEl = document.getElementById("password-error");
+
+    const pw =
+      document
+        .getElementById("password-input")
+        .value
+        .trim();
+
+    const errEl =
+      document.getElementById(
+        "password-error"
+      );
+
     errEl.style.display = "none";
+
     if (!pw) return;
+
+
     try {
-      const data = await api("/api/login", { method: "POST", body: JSON.stringify({ password: pw }) });
+
+      const data =
+        await api(
+          "/api/login",
+          {
+            method:"POST",
+            body:JSON.stringify({
+              password:pw
+            })
+          }
+        );
+
       sessionToken = data.token;
+
       renderInstructionsStep();
-    } catch (err) {
-      errEl.textContent = err.message;
-      errEl.style.display = "block";
+
     }
+
+    catch (err) {
+
+      errEl.textContent =
+        err.message;
+
+      errEl.style.display =
+        "block";
+
+    }
+
   };
-  document.getElementById("password-submit").onclick = submit;
-  document.getElementById("password-input").addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+
+
+  document
+    .getElementById(
+      "password-submit"
+    )
+    .onclick = submit;
+
+
+  document
+    .getElementById(
+      "password-input"
+    )
+    .addEventListener(
+      "keydown",
+      e => {
+
+        if (e.key === "Enter") {
+          submit();
+        }
+
+      }
+    );
+
 }
+
+
+/* =========================================================
+   ISTRUZIONI
+========================================================= */
 
 function renderInstructionsStep() {
-  const items = ISTRUZIONI.map(t => `<li style="margin-bottom:8px;">${t}</li>`).join("");
+
   root.innerHTML = `
-    <div class="label">Istruzioni</div>
-    <ul style="padding-left:18px; margin:0 0 16px; font-size:13px; color:#2A2A2A; line-height:1.5;">
-      ${items}
-    </ul>
-    <button class="primary" id="instr-continue">Ho capito, continua</button>
+
+    <div style="
+      font-size:18px;
+      font-weight:700;
+      color:#16305C;
+      margin-bottom:12px;
+    ">
+      Servizio di Assistenza Virtuale (chatbot)
+    </div>
+
+
+    <p style="
+      font-size:13px;
+      line-height:1.6;
+      color:#2A2A2A;
+      margin:0 0 18px;
+    ">
+
+      Il servizio mette a disposizione un assistente virtuale
+      (chatbot) progettato per rispondere ai quesiti degli utenti
+      basandosi
+
+      <strong>
+        esclusivamente sulla DOCUMENTAZIONE UFFICIALE DEL
+        COMITATO REGIONALE FIPAV MARCHE.
+      </strong>
+
+    </p>
+
+
+    <!-- ===========================
+         MODALITÀ DI FUNZIONAMENTO
+    ============================ -->
+
+    <div style="
+      background:#EFE9DD;
+      border-radius:10px;
+      padding:15px;
+      margin-bottom:16px;
+    ">
+
+      <div style="
+        font-size:14px;
+        font-weight:700;
+        color:#16305C;
+        margin-bottom:14px;
+      ">
+        📌 Modalità di funzionamento e raccomandazioni d'uso
+      </div>
+
+
+      <p style="
+        font-size:13px;
+        line-height:1.55;
+        margin:0 0 12px;
+      ">
+
+        <strong>
+          Argomenti già trattati:
+        </strong>
+
+        Prima di porre una nuova domanda al chatbot,
+        si invita a consultare l'elenco delle
+        <strong>FAQ - Domande Frequenti</strong>
+        disponibili ed aggiornate al seguente link:
+
+        <a
+          href="INSERISCI-QUI-LINK-FAQ"
+          target="_blank"
+          style="
+            color:#16305C;
+            font-weight:700;
+          ">
+          FAQ - Domande Frequenti
+        </a>.
+
+        In questa sezione, in aggiornamento,
+        sono già presenti le risposte ai quesiti
+        e dubbi più comuni.
+
+      </p>
+
+
+      <p style="
+        font-size:13px;
+        line-height:1.55;
+        margin:0 0 12px;
+      ">
+
+        <strong>
+          Documentazione di riferimento:
+        </strong>
+
+        Il chatbot risponde soltanto su argomenti
+        presenti nei testi ufficiali.
+
+        Per la consultazione integrale o per
+        eventuali verifiche dirette,
+        la documentazione completa è disponibile
+        al seguente link:
+
+        <a
+          href="INSERISCI-QUI-LINK-DOCUMENTAZIONE"
+          target="_blank"
+          style="
+            color:#16305C;
+            font-weight:700;
+          ">
+          Documentazione ufficiale
+        </a>.
+
+      </p>
+
+
+      <p style="
+        font-size:13px;
+        line-height:1.55;
+        margin:0 0 12px;
+      ">
+
+        <strong>
+          Formulazione dei quesiti:
+        </strong>
+
+        Si raccomanda di porre le domande
+        in modo chiaro e dettagliato.
+
+        È possibile inserire domande successive
+        per affinare le risposte o richiedere
+        ulteriori dettagli.
+
+      </p>
+
+
+      <p style="
+        font-size:13px;
+        line-height:1.55;
+        margin:0 0 12px;
+      ">
+
+        <strong>
+          Valore delle risposte:
+        </strong>
+
+        Le informazioni fornite dall'assistente
+        virtuale hanno carattere informativo.
+
+        Ogni risposta va pertanto letta,
+        compresa e verificata rispetto ai
+        testi ufficiali presenti sul sito.
+
+      </p>
+
+
+      <p style="
+        font-size:13px;
+        line-height:1.55;
+        margin:0;
+      ">
+
+        <strong>
+          Argomenti non presenti:
+        </strong>
+
+        Qualora un'informazione non sia reperibile
+        nella documentazione, il chatbot lo segnalerà
+        e indicherà le vie alternative di contatto
+        con il Comitato (ad esempio e-mail).
+
+        Le risposte a tali richieste verranno quindi
+        fornite necessariamente secondo tempistiche
+        non immediate e modalità ordinarie.
+
+      </p>
+
+    </div>
+
+
+    <!-- ===========================
+         CONDIZIONI DI ACCESSO
+    ============================ -->
+
+    <div style="
+      background:#FFF4E2;
+      border-left:4px solid #F2A93B;
+      border-radius:8px;
+      padding:15px;
+      margin-bottom:18px;
+    ">
+
+      <div style="
+        font-size:14px;
+        font-weight:700;
+        color:#16305C;
+        margin-bottom:14px;
+      ">
+        ⚠️ Condizioni di accesso e limiti di utilizzo
+      </div>
+
+
+      <p style="
+        font-size:13px;
+        line-height:1.55;
+        margin:0 0 12px;
+      ">
+
+        <strong>
+          Limite di domande per società:
+        </strong>
+
+        In considerazione dei costi procedurali,
+        è consentito un
+
+        <strong>
+          numero massimo di 200 domande complessive
+          per ciascuna società per mese solare
+        </strong>.
+
+        Superato tale limite, l'accesso verrà
+        bloccato automaticamente e potrà essere
+        ripristinato solo su richiesta al
+
+        <strong>
+          COMITATO REGIONALE
+        </strong>.
+
+      </p>
+
+
+      <p style="
+        font-size:13px;
+        line-height:1.55;
+        margin:0 0 12px;
+      ">
+
+        <strong>
+          Autenticazione e identificazione:
+        </strong>
+
+        La password di accesso è condivisa
+        tra gli utenti appartenenti alla
+        medesima società.
+
+        Nella schermata successiva e ad ogni
+        accesso successivo è richiesto
+        l'inserimento di
+
+        <strong>
+          Nome, Cognome e Qualifica
+        </strong>
+
+        del richiedente.
+
+      </p>
+
+
+      <p style="
+        font-size:13px;
+        line-height:1.55;
+        margin:0;
+      ">
+
+        <strong>
+          Trattamento dati e riservatezza:
+        </strong>
+
+        I dati identificativi inseriti saranno
+        trattati nel rispetto della normativa
+        sulla privacy al solo fine di gestire
+        e monitorare gli accessi.
+
+        Si richiede di non inserire dati personali
+        sensibili o informazioni riservate
+        all'interno dei testi delle domande.
+
+      </p>
+
+    </div>
+
+
+    <button
+      class="primary"
+      id="instr-continue">
+
+      Ho letto, continua
+
+    </button>
+
   `;
-  document.getElementById("instr-continue").onclick = renderRegisterStep;
+
+
+  document
+    .getElementById(
+      "instr-continue"
+    )
+    .onclick =
+      renderRegisterStep;
+
 }
+
+
+/* =========================================================
+   IDENTIFICAZIONE UTENTE
+========================================================= */
 
 function renderRegisterStep() {
+
   root.innerHTML = `
-    <div class="label">I tuoi dati</div>
-    <p style="font-size:12.5px; color:#7A7264; margin:0 0 10px;">Questa password è condivisa: indica chi sei ad ogni accesso.</p>
-    <input type="text" id="nome-input" placeholder="Nome" />
-    <input type="text" id="cognome-input" placeholder="Cognome" />
+
+    <div class="label">
+      I tuoi dati
+    </div>
+
+    <p style="
+      font-size:12.5px;
+      color:#7A7264;
+      margin:0 0 10px;
+    ">
+      Questa password è condivisa:
+      indica chi sei ad ogni accesso.
+    </p>
+
+    <input
+      type="text"
+      id="nome-input"
+      placeholder="Nome"
+    />
+
+    <input
+      type="text"
+      id="cognome-input"
+      placeholder="Cognome"
+    />
+
     <select id="qualifica-input">
-      <option value="" selected disabled>Seleziona la qualifica...</option>
-      <option value="Presidente">Presidente</option>
-      <option value="Dirigente">Dirigente</option>
-      <option value="Direttore sportivo">Direttore sportivo</option>
-      <option value="Allenatore">Allenatore</option>
-      <option value="Arbitro associato">Arbitro associato</option>
-      <option value="Atleta">Atleta</option>
-      <option value="Altro">Altro</option>
+
+      <option
+        value=""
+        selected
+        disabled>
+        Seleziona la qualifica...
+      </option>
+
+      <option value="Presidente">
+        Presidente
+      </option>
+
+      <option value="Dirigente">
+        Dirigente
+      </option>
+
+      <option value="Direttore sportivo">
+        Direttore sportivo
+      </option>
+
+      <option value="Allenatore">
+        Allenatore
+      </option>
+
+      <option value="Arbitro associato">
+        Arbitro associato
+      </option>
+
+      <option value="Atleta">
+        Atleta
+      </option>
+
+      <option value="Altro">
+        Altro
+      </option>
+
     </select>
-    <div class="error" id="register-error" style="display:none;"></div>
-    <button class="primary" id="register-submit">Continua</button>
+
+
+    <div
+      class="error"
+      id="register-error"
+      style="display:none;">
+    </div>
+
+
+    <button
+      class="primary"
+      id="register-submit">
+      Continua
+    </button>
+
   `;
-  document.getElementById("register-submit").onclick = async () => {
-    const nome = document.getElementById("nome-input").value.trim();
-    const cognome = document.getElementById("cognome-input").value.trim();
-    const qualifica = document.getElementById("qualifica-input").value;
-    const errEl = document.getElementById("register-error");
-    errEl.style.display = "none";
-    if (!nome || !cognome || !qualifica) {
-      errEl.textContent = "Nome, cognome e qualifica sono obbligatori.";
-      errEl.style.display = "block";
-      return;
-    }
-    try {
-      await api("/api/register", { method: "POST", body: JSON.stringify({ nome, cognome, qualifica }) });
-      startChat(nome);
-    } catch (err) {
-      errEl.textContent = err.message;
-      errEl.style.display = "block";
-    }
-  };
+
+
+  document
+    .getElementById(
+      "register-submit"
+    )
+    .onclick =
+      async () => {
+
+        const nome =
+          document
+            .getElementById(
+              "nome-input"
+            )
+            .value
+            .trim();
+
+        const cognome =
+          document
+            .getElementById(
+              "cognome-input"
+            )
+            .value
+            .trim();
+
+        const qualifica =
+          document
+            .getElementById(
+              "qualifica-input"
+            )
+            .value;
+
+        const errEl =
+          document.getElementById(
+            "register-error"
+          );
+
+        errEl.style.display =
+          "none";
+
+
+        if (
+          !nome ||
+          !cognome ||
+          !qualifica
+        ) {
+
+          errEl.textContent =
+            "Nome, cognome e qualifica sono obbligatori.";
+
+          errEl.style.display =
+            "block";
+
+          return;
+
+        }
+
+
+        try {
+
+          await api(
+            "/api/register",
+            {
+              method:"POST",
+              body:JSON.stringify({
+                nome,
+                cognome,
+                qualifica
+              })
+            }
+          );
+
+          startChat(nome);
+
+        }
+
+        catch (err) {
+
+          errEl.textContent =
+            err.message;
+
+          errEl.style.display =
+            "block";
+
+        }
+
+      };
+
 }
+
+
+/* =========================================================
+   CHAT
+========================================================= */
 
 function startChat(nome) {
+
   root.innerHTML = `
-    <div class="summary">Connesso come <b>${nome || "utente"}</b> — backend online reale</div>
-    <div class="messages" id="messages"></div>
-    <div class="counter" id="counter-line"></div>
-    <div class="row">
-      <input type="text" id="question-input" placeholder="Scrivi una domanda vera..." />
-      <button class="send" id="send-btn">&#10148;</button>
+
+    <div class="summary">
+      Connesso come
+      <b>${nome || "utente"}</b>
+      — backend online reale
     </div>
-    <button class="link" id="restart-btn">Esci e ricomincia</button>
+
+    <div
+      class="messages"
+      id="messages">
+    </div>
+
+    <div
+      class="counter"
+      id="counter-line">
+    </div>
+
+    <div class="row">
+
+      <input
+        type="text"
+        id="question-input"
+        placeholder="Scrivi una domanda vera..."
+      />
+
+      <button
+        class="send"
+        id="send-btn">
+        &#10148;
+      </button>
+
+    </div>
+
+    <button
+      class="link"
+      id="restart-btn">
+      Esci e ricomincia
+    </button>
+
   `;
-  addMessage("Buongiorno, come posso aiutarti?", "bot");
-  document.getElementById("send-btn").onclick = askQuestion;
-  document.getElementById("question-input").addEventListener("keydown", e => { if (e.key === "Enter") askQuestion(); });
-  document.getElementById("restart-btn").onclick = () => {
-    sessionToken = null;
-    renderPasswordStep();
-  };
+
+
+  addMessage(
+    "Buongiorno, come posso aiutarti?",
+    "bot"
+  );
+
+
+  document
+    .getElementById(
+      "send-btn"
+    )
+    .onclick =
+      askQuestion;
+
+
+  document
+    .getElementById(
+      "question-input"
+    )
+    .addEventListener(
+      "keydown",
+      e => {
+
+        if (e.key === "Enter") {
+          askQuestion();
+        }
+
+      }
+    );
+
+
+  document
+    .getElementById(
+      "restart-btn"
+    )
+    .onclick =
+      () => {
+
+        sessionToken = null;
+
+        renderPasswordStep();
+
+      };
+
 }
 
-function addMessage(text, who) {
-  const messages = document.getElementById("messages");
-  const row = document.createElement("div");
-  row.className = "msg " + who;
-  const bubble = document.createElement("div");
-  bubble.className = "bubble";
-  bubble.textContent = text;
-  row.appendChild(bubble);
-  messages.appendChild(row);
-  messages.scrollTop = messages.scrollHeight;
+
+/* =========================================================
+   AGGIUNTA MESSAGGI
+========================================================= */
+
+function addMessage(
+  text,
+  who
+) {
+
+  const messages =
+    document.getElementById(
+      "messages"
+    );
+
+  const row =
+    document.createElement(
+      "div"
+    );
+
+  row.className =
+    "msg " + who;
+
+
+  const bubble =
+    document.createElement(
+      "div"
+    );
+
+  bubble.className =
+    "bubble";
+
+  bubble.textContent =
+    text;
+
+
+  row.appendChild(
+    bubble
+  );
+
+  messages.appendChild(
+    row
+  );
+
+  messages.scrollTop =
+    messages.scrollHeight;
+
   return row;
+
 }
+
+
+/* =========================================================
+   INVIO DOMANDA
+========================================================= */
 
 async function askQuestion() {
-  const input = document.getElementById("question-input");
-  const text = input.value.trim();
+
+  const input =
+    document.getElementById(
+      "question-input"
+    );
+
+  const text =
+    input.value.trim();
+
   if (!text) return;
 
-  addMessage(text, "user");
-  input.value = "";
-  const sendBtn = document.getElementById("send-btn");
-  sendBtn.disabled = true;
-  const thinkingRow = addMessage("Sto pensando...", "system");
+
+  addMessage(
+    text,
+    "user"
+  );
+
+
+  input.value =
+    "";
+
+
+  const sendBtn =
+    document.getElementById(
+      "send-btn"
+    );
+
+  sendBtn.disabled =
+    true;
+
+
+  const thinkingRow =
+    addMessage(
+      "Sto pensando...",
+      "system"
+    );
+
 
   try {
-    const data = await api("/api/chat", { method: "POST", body: JSON.stringify({ domanda: text }) });
+
+    const data =
+      await api(
+        "/api/chat",
+        {
+          method:"POST",
+          body:JSON.stringify({
+            domanda:text
+          })
+        }
+      );
+
+
     thinkingRow.remove();
-    addMessage(data.risposta, "bot");
-    if (typeof data.remaining === "number") {
-      document.getElementById("counter-line").textContent = "Domande rimanenti questo mese: " + data.remaining;
+
+
+    addMessage(
+      data.risposta,
+      "bot"
+    );
+
+
+    if (
+      typeof data.remaining ===
+      "number"
+    ) {
+
+      document
+        .getElementById(
+          "counter-line"
+        )
+        .textContent =
+          "Domande rimanenti questo mese: " +
+          data.remaining;
+
     }
-  } catch (err) {
-    thinkingRow.remove();
-    addMessage(err.message, "system");
-  } finally {
-    sendBtn.disabled = false;
+
   }
+
+  catch (err) {
+
+    thinkingRow.remove();
+
+    addMessage(
+      err.message,
+      "system"
+    );
+
+  }
+
+  finally {
+
+    sendBtn.disabled =
+      false;
+
+  }
+
 }
 
+
+/* =========================================================
+   AVVIO
+========================================================= */
+
 renderPasswordStep();
+
 </script>
+
 </div>
+
 </body>
 </html>
+```
