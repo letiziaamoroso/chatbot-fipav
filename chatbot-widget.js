@@ -254,22 +254,133 @@
   }
 
   // ---------- Step 2: istruzioni ----------
-  function showInstructionsStep(token) {
-    body.innerHTML = "";
-    const wrap = document.createElement("div");
-    const items = CONFIG.ISTRUZIONI.map((t) => `<li style="margin-bottom:8px;">${t}</li>`).join("");
-    wrap.innerHTML = `
-      <p class="fpv-field-label">Istruzioni</p>
-      <ul style="padding-left:18px; margin:0 0 16px; font-size:13px; color:#2A2A2A; line-height:1.5;">
-        ${items}
-      </ul>
-      <button class="fpv-btn" id="fpv-instr-continue">Ho capito, continua</button>
-    `;
-    body.appendChild(wrap);
-    wrap.querySelector("#fpv-instr-continue").addEventListener("click", () => {
-      showRegisterStep(token);
-    });
-  }
+function showInstructionsStep(token) {
+  body.innerHTML = "";
+
+  const wrap = document.createElement("div");
+
+  wrap.innerHTML = `
+    <div style="font-size:17px; font-weight:700; color:#16305C; margin-bottom:12px;">
+      Servizio di Assistenza Virtuale (chatbot)
+    </div>
+
+    <p style="font-size:13px; line-height:1.55; color:#2A2A2A; margin:0 0 18px;">
+      Il servizio mette a disposizione un assistente virtuale (chatbot)
+      progettato per rispondere ai quesiti degli utenti basandosi
+      <strong>esclusivamente sulla DOCUMENTAZIONE UFFICIALE DEL COMITATO
+      REGIONALE FIPAV MARCHE.</strong>
+    </p>
+
+    <div style="
+      background:#EFE9DD;
+      border-radius:10px;
+      padding:12px;
+      margin-bottom:16px;
+    ">
+      <div style="font-size:14px; font-weight:700; color:#16305C; margin-bottom:12px;">
+        📌 Modalità di funzionamento e raccomandazioni d'uso
+      </div>
+
+      <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
+        <strong>Argomenti già trattati:</strong>
+        Prima di porre una nuova domanda al chatbot, si invita a consultare
+        l'elenco delle <strong>FAQ - Domande Frequenti</strong> disponibili
+        ed aggiornate al seguente link:
+        <a href="INSERISCI-QUI-LINK-FAQ"
+           target="_blank"
+           style="color:#16305C; font-weight:600;">
+           FAQ - Domande Frequenti
+        </a>.
+        In questa sezione, in aggiornamento, sono già presenti le risposte
+        ai quesiti e dubbi più comuni.
+      </p>
+
+      <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
+        <strong>Documentazione di riferimento:</strong>
+        Il chatbot risponde soltanto su argomenti presenti nei testi ufficiali.
+        Per la consultazione integrale o per eventuali verifiche dirette,
+        la documentazione completa è disponibile al seguente link:
+        <a href="INSERISCI-QUI-LINK-DOCUMENTAZIONE"
+           target="_blank"
+           style="color:#16305C; font-weight:600;">
+           Documentazione ufficiale
+        </a>.
+      </p>
+
+      <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
+        <strong>Formulazione dei quesiti:</strong>
+        Si raccomanda di porre le domande in modo chiaro e dettagliato.
+        È possibile inserire domande successive per affinare le risposte
+        o richiedere ulteriori dettagli.
+      </p>
+
+      <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
+        <strong>Valore delle risposte:</strong>
+        Le informazioni fornite dall'assistente virtuale hanno carattere
+        informativo. Ogni risposta va pertanto letta, compresa e verificata
+        rispetto ai testi ufficiali presenti sul sito.
+      </p>
+
+      <p style="font-size:12.5px; line-height:1.5; margin:0;">
+        <strong>Argomenti non presenti:</strong>
+        Qualora un'informazione non sia reperibile nella documentazione,
+        il chatbot lo segnalerà e indicherà le vie alternative di contatto
+        con il Comitato (ad esempio e-mail). Le risposte a tali richieste
+        verranno quindi fornite necessariamente secondo tempistiche non
+        immediate e modalità ordinarie.
+      </p>
+    </div>
+
+
+    <div style="
+      background:#FFF4E2;
+      border-left:4px solid #F2A93B;
+      border-radius:8px;
+      padding:12px;
+      margin-bottom:16px;
+    ">
+      <div style="font-size:14px; font-weight:700; color:#16305C; margin-bottom:12px;">
+        ⚠️ Condizioni di accesso e limiti di utilizzo
+      </div>
+
+      <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
+        <strong>Limite di domande per società:</strong>
+        In considerazione dei costi procedurali, è consentito un
+        <strong>numero massimo di 200 domande complessive per ciascuna
+        società per mese solare</strong>.
+        Superato tale limite, l'accesso verrà bloccato automaticamente
+        e potrà essere ripristinato solo su richiesta al
+        <strong>COMITATO REGIONALE</strong>.
+      </p>
+
+      <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
+        <strong>Autenticazione e identificazione:</strong>
+        La password di accesso è condivisa tra gli utenti appartenenti
+        alla medesima società. Nella schermata successiva e ad ogni accesso
+        successivo è richiesto l'inserimento di
+        <strong>Nome, Cognome e Qualifica</strong> del richiedente.
+      </p>
+
+      <p style="font-size:12.5px; line-height:1.5; margin:0;">
+        <strong>Trattamento dati e riservatezza:</strong>
+        I dati identificativi inseriti saranno trattati nel rispetto della
+        normativa sulla privacy al solo fine di gestire e monitorare gli
+        accessi. Si richiede di non inserire dati personali sensibili o
+        informazioni riservate all'interno dei testi delle domande.
+      </p>
+    </div>
+
+    <button class="fpv-btn" id="fpv-instr-continue">
+      Ho letto, continua
+    </button>
+  `;
+
+  body.appendChild(wrap);
+
+  wrap.querySelector("#fpv-instr-continue").addEventListener("click", () => {
+    showRegisterStep(token);
+  });
+}
 
   // ---------- Step 2: nome/cognome/qualifica (sempre richiesto: il codice è condiviso) ----------
   function showRegisterStep(token) {
