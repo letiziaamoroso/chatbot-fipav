@@ -88,6 +88,29 @@
 
   .hidden { display: none !important; }
   .risposta-cell { max-width: 420px; white-space: pre-wrap; }
+
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover { color: var(--navy); }
+  th.sortable .arrow { display: inline-block; width: 10px; opacity: 0.5; }
+  th.sortable.active .arrow { opacity: 1; }
+
+  .filter-row th { padding: 6px 8px; border-bottom: 1px solid var(--line); background: #FBFAF7; }
+  .filter-row input, .filter-row select {
+    width: 100%; padding: 5px 7px; border: 1.5px solid var(--line); border-radius: 6px;
+    font-size: 12px; font-family: inherit; box-sizing: border-box;
+  }
+  .filter-bar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+  .filter-bar button {
+    background: none; border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px;
+    font-size: 11.5px; cursor: pointer; color: var(--muted);
+  }
+  .filter-bar button:hover { border-color: var(--navy); color: var(--navy); }
+
+  .cat-select {
+    padding: 4px 6px; border: 1.5px solid var(--line); border-radius: 6px; font-size: 11.5px;
+    max-width: 180px; color: var(--text); background: #fff;
+  }
+  .cat-select.empty { color: var(--muted); }
 </style>
 </head>
 <body>
@@ -124,10 +147,36 @@
 
     <div id="tab-users" class="card">
       <h2>Elenco società</h2>
+      <div class="filter-bar"><button onclick="clearFilters('users')">Cancella filtri</button></div>
       <table>
         <thead>
           <tr>
-            <th>Nome società</th><th>Codice società</th><th>Password</th><th>Domande</th><th>Stato</th><th>Ultimo accesso</th><th></th>
+            <th class="sortable" data-table="users" data-col="id" onclick="toggleSort('users','id')">ID <span class="arrow">▾</span></th>
+            <th class="sortable" data-table="users" data-col="societa" onclick="toggleSort('users','societa')">Nome società <span class="arrow">▾</span></th>
+            <th class="sortable" data-table="users" data-col="codice_societa" onclick="toggleSort('users','codice_societa')">Codice società <span class="arrow">▾</span></th>
+            <th class="sortable" data-table="users" data-col="password" onclick="toggleSort('users','password')">Password <span class="arrow">▾</span></th>
+            <th class="sortable" data-table="users" data-col="question_count" onclick="toggleSort('users','question_count')">Domande <span class="arrow">▾</span></th>
+            <th class="sortable" data-table="users" data-col="stato" onclick="toggleSort('users','stato')">Stato <span class="arrow">▾</span></th>
+            <th class="sortable" data-table="users" data-col="last_login" onclick="toggleSort('users','last_login')">Ultimo accesso <span class="arrow">▾</span></th>
+            <th></th>
+          </tr>
+          <tr class="filter-row">
+            <th><input type="text" oninput="setFilter('users','id',this.value)" placeholder="Filtra..." /></th>
+            <th><input type="text" oninput="setFilter('users','societa',this.value)" placeholder="Filtra..." /></th>
+            <th><input type="text" oninput="setFilter('users','codice_societa',this.value)" placeholder="Filtra..." /></th>
+            <th><input type="text" oninput="setFilter('users','password',this.value)" placeholder="Filtra..." /></th>
+            <th></th>
+            <th>
+              <select onchange="setFilter('users','stato',this.value)">
+                <option value="">Tutti</option>
+                <option value="attivo">Attivo</option>
+                <option value="vicino">Vicino al limite</option>
+                <option value="bloccato-limite">Bloccato — limite</option>
+                <option value="bloccato-manuale">Bloccato manualmente</option>
+              </select>
+            </th>
+            <th></th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="users-tbody"></tbody>
@@ -139,9 +188,32 @@
         Cronologia domande
         <button class="btn" onclick="exportLogsToExcel()">Esporta in Excel</button>
       </h2>
+      <div class="filter-bar"><button onclick="clearFilters('logs')">Cancella filtri</button></div>
       <table>
         <thead>
-          <tr><th>Utente</th><th>Domanda</th><th>Risposta</th><th>Data/ora</th><th></th></tr>
+          <tr>
+            <th class="sortable" data-table="logs" data-col="societa" onclick="toggleSort('logs','societa')">Società <span class="arrow">▾</span></th>
+            <th class="sortable" data-table="logs" data-col="utente" onclick="toggleSort('logs','utente')">Utente <span class="arrow">▾</span></th>
+            <th class="sortable" data-table="logs" data-col="domanda" onclick="toggleSort('logs','domanda')">Domanda <span class="arrow">▾</span></th>
+            <th>Risposta</th>
+            <th class="sortable" data-table="logs" data-col="categoria" onclick="toggleSort('logs','categoria')">Categoria <span class="arrow">▾</span></th>
+            <th class="sortable" data-table="logs" data-col="timestamp" onclick="toggleSort('logs','timestamp')">Data/ora <span class="arrow">▾</span></th>
+            <th></th>
+          </tr>
+          <tr class="filter-row">
+            <th><input type="text" oninput="setFilter('logs','societa',this.value)" placeholder="Filtra..." /></th>
+            <th><input type="text" oninput="setFilter('logs','utente',this.value)" placeholder="Filtra..." /></th>
+            <th><input type="text" oninput="setFilter('logs','domanda',this.value)" placeholder="Filtra..." /></th>
+            <th><input type="text" oninput="setFilter('logs','risposta',this.value)" placeholder="Filtra..." /></th>
+            <th>
+              <select id="logs-categoria-filter" onchange="setFilter('logs','categoria',this.value)">
+                <option value="">Tutte</option>
+                <option value="__none__">Non categorizzate</option>
+              </select>
+            </th>
+            <th></th>
+            <th></th>
+          </tr>
         </thead>
         <tbody id="logs-tbody"></tbody>
       </table>
@@ -166,9 +238,21 @@
       </div>
       <div id="add-faq-msg" style="font-size:12.5px; margin:-8px 0 14px;"></div>
 
+      <div class="filter-bar"><button onclick="clearFilters('faqs')">Cancella filtri</button></div>
       <table>
         <thead>
-          <tr><th>Domanda</th><th>Risposta</th><th>Data/ora</th><th></th></tr>
+          <tr>
+            <th class="sortable" data-table="faqs" data-col="domanda" onclick="toggleSort('faqs','domanda')">Domanda <span class="arrow">▾</span></th>
+            <th>Risposta</th>
+            <th class="sortable" data-table="faqs" data-col="timestamp" onclick="toggleSort('faqs','timestamp')">Data/ora <span class="arrow">▾</span></th>
+            <th></th>
+          </tr>
+          <tr class="filter-row">
+            <th><input type="text" oninput="setFilter('faqs','domanda',this.value)" placeholder="Filtra..." /></th>
+            <th><input type="text" oninput="setFilter('faqs','risposta',this.value)" placeholder="Filtra..." /></th>
+            <th></th>
+            <th></th>
+          </tr>
         </thead>
         <tbody id="faqs-tbody"></tbody>
       </table>
@@ -205,6 +289,18 @@
   // ==========================================================
   const API_BASE_URL = "https://chatbot-fipav-production.up.railway.app";
   let MAX_QUESTIONS = 100; // valore di riserva, viene sostituito da quello reale del server
+
+  const CATEGORIE = [
+    "Tesseramento e Affiliazione",
+    "Campionati e Classifiche",
+    "Regolamento di gioco",
+    "Arbitri e Ufficiali di gara",
+    "Allenatori e Tecnici",
+    "Beach Volley",
+    "Minivolley e Scuola",
+    "Normativa e Statuto",
+    "Altro",
+  ];
   // ==========================================================
 
   let adminPassword = sessionStorage.getItem("fpv_admin_pw") || "";
@@ -289,8 +385,90 @@
     return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
+  let lastUsers = [];
   let lastLogs = [];
   let lastFaqs = [];
+
+  // ---------------------------------------------------------------------
+  // Filtri e ordinamento (lato client, su dati già caricati: nessuna nuova
+  // chiamata al server, nessun rischio per i dati salvati).
+  // ---------------------------------------------------------------------
+  const tableState = {
+    users: { filters: {}, sort: { col: null, dir: 1 } },
+    logs: { filters: {}, sort: { col: null, dir: 1 } },
+    faqs: { filters: {}, sort: { col: null, dir: 1 } },
+  };
+
+  function setFilter(table, col, value) {
+    tableState[table].filters[col] = (value || "").toLowerCase();
+    rerender(table);
+  }
+
+  function clearFilters(table) {
+    tableState[table].filters = {};
+    document.querySelectorAll(`#tab-${table} .filter-row input`).forEach((el) => (el.value = ""));
+    document.querySelectorAll(`#tab-${table} .filter-row select`).forEach((el) => (el.value = ""));
+    rerender(table);
+  }
+
+  function toggleSort(table, col) {
+    const s = tableState[table].sort;
+    if (s.col === col) {
+      s.dir = -s.dir;
+    } else {
+      s.col = col;
+      s.dir = 1;
+    }
+    document.querySelectorAll(`th[data-table="${table}"]`).forEach((th) => {
+      th.classList.toggle("active", th.dataset.col === col);
+      const arrow = th.querySelector(".arrow");
+      if (th.dataset.col === col) arrow.textContent = s.dir === 1 ? "▾" : "▴";
+      else arrow.textContent = "▾";
+    });
+    rerender(table);
+  }
+
+  function rerender(table) {
+    if (table === "users") renderUsers(lastUsers);
+    if (table === "logs") renderLogs(lastLogs);
+    if (table === "faqs") renderFaqs(lastFaqs);
+  }
+
+  function statusKey(u) {
+    if (u.blocked && u.blocked_reason === "limite") return "bloccato-limite";
+    if (u.blocked) return "bloccato-manuale";
+    if (u.question_count >= MAX_QUESTIONS * 0.9) return "vicino";
+    return "attivo";
+  }
+
+  function applyFiltersAndSort(rows, state, getters) {
+    let out = rows;
+    for (const [col, needle] of Object.entries(state.filters)) {
+      if (!needle) continue;
+      const getter = getters[col];
+      if (!getter) continue;
+      out = out.filter((r) => {
+        const val = getter(r);
+        if (needle === "__none__") return !val;
+        return String(val ?? "").toLowerCase().includes(needle);
+      });
+    }
+    if (state.sort.col && getters[state.sort.col]) {
+      const getter = getters[state.sort.col];
+      out = [...out].sort((a, b) => {
+        const va = getter(a), vb = getter(b);
+        const na = parseFloat(va), nb = parseFloat(vb);
+        let cmp;
+        if (!isNaN(na) && !isNaN(nb) && String(va).trim() !== "" && String(vb).trim() !== "") {
+          cmp = na - nb;
+        } else {
+          cmp = String(va ?? "").localeCompare(String(vb ?? ""), "it", { sensitivity: "base" });
+        }
+        return cmp * state.sort.dir;
+      });
+    }
+    return out;
+  }
 
   async function loadAll() {
     const [users, logs, faqs] = await Promise.all([
@@ -298,6 +476,7 @@
       api("/api/admin/logs"),
       api("/api/admin/faqs"),
     ]);
+    lastUsers = users;
     lastLogs = logs;
     lastFaqs = faqs;
     renderStats(users, logs);
@@ -335,9 +514,24 @@
     `;
   }
 
+  const usersGetters = {
+    id: (u) => u.id,
+    societa: (u) => u.societa || "",
+    codice_societa: (u) => u.codice_societa || "",
+    password: (u) => u.password || "",
+    question_count: (u) => u.question_count,
+    stato: (u) => statusKey(u),
+    last_login: (u) => u.last_login || "",
+  };
+
   function renderUsers(users) {
     const tbody = document.getElementById("users-tbody");
-    tbody.innerHTML = users
+    const rows = applyFiltersAndSort(users, tableState.users, usersGetters);
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="color:var(--muted);">Nessuna società corrisponde ai filtri impostati.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows
       .map((u) => {
         let statusPill = '<span class="pill ok">attivo</span>';
         if (u.blocked && u.blocked_reason === "limite") {
@@ -349,6 +543,7 @@
         }
         return `
           <tr>
+            <td>${u.id}</td>
             <td>${u.societa ? escapeHtml(u.societa) : "<em>—</em>"}</td>
             <td>${u.codice_societa ? escapeHtml(u.codice_societa) : "<em>—</em>"}</td>
             <td><code>${escapeHtml(u.password)}</code></td>
@@ -370,15 +565,43 @@
       .join("");
   }
 
+  function categorySelectHtml(l) {
+    const current = l.categoria || "";
+    const options = [`<option value="" ${current === "" ? "selected" : ""}>— Nessuna —</option>`]
+      .concat(
+        CATEGORIE.map(
+          (c) => `<option value="${escapeHtml(c)}" ${current === c ? "selected" : ""}>${escapeHtml(c)}</option>`
+        )
+      )
+      .join("");
+    return `<select class="cat-select ${current ? "" : "empty"}" onchange="setLogCategoria(${l.id}, this.value)">${options}</select>`;
+  }
+
+  const logsGetters = {
+    societa: (l) => l.societa || "",
+    utente: (l) => `${l.nome || ""} ${l.cognome || ""} ${l.qualifica || ""}`,
+    domanda: (l) => l.domanda || "",
+    risposta: (l) => l.risposta || "",
+    categoria: (l) => l.categoria || "",
+    timestamp: (l) => l.timestamp || "",
+  };
+
   function renderLogs(logs) {
     const tbody = document.getElementById("logs-tbody");
-    tbody.innerHTML = logs
+    const rows = applyFiltersAndSort(logs, tableState.logs, logsGetters);
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="color:var(--muted);">Nessuna domanda corrisponde ai filtri impostati.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows
       .map(
         (l) => `
       <tr>
+        <td>${l.societa ? escapeHtml(l.societa) : "<em>—</em>"}</td>
         <td>${escapeHtml(l.nome || "")} ${escapeHtml(l.cognome || "")}<br><span style="color:var(--muted); font-size:11px;">${escapeHtml(l.qualifica || "")}</span></td>
         <td>${escapeHtml(l.domanda)}</td>
         <td class="risposta-cell">${escapeHtml(l.risposta || "")}</td>
+        <td>${categorySelectHtml(l)}</td>
         <td>${escapeHtml(l.timestamp)}</td>
         <td class="row-actions">
           <button class="${l.faq ? 'faq-active' : ''}" onclick="toggleFaq(${l.id}, ${l.faq ? 'false' : 'true'})">
@@ -390,13 +613,20 @@
       .join("");
   }
 
+  const faqsGetters = {
+    domanda: (l) => l.domanda || "",
+    risposta: (l) => l.risposta || "",
+    timestamp: (l) => l.timestamp || "",
+  };
+
   function renderFaqs(faqs) {
     const tbody = document.getElementById("faqs-tbody");
-    if (faqs.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" style="color:var(--muted);">Nessuna FAQ presente per ora. Aggiungine una qui sopra, oppure vai su "Domande" e usa "Segna come FAQ".</td></tr>`;
+    const rows = applyFiltersAndSort(faqs, tableState.faqs, faqsGetters);
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" style="color:var(--muted);">Nessuna FAQ corrisponde (o non ne hai ancora aggiunte). Aggiungine una qui sopra, oppure vai su "Domande" e usa "Segna come FAQ".</td></tr>`;
       return;
     }
-    tbody.innerHTML = faqs
+    tbody.innerHTML = rows
       .map(
         (l) => `
       <tr>
@@ -409,6 +639,15 @@
       </tr>`
       )
       .join("");
+  }
+
+  async function setLogCategoria(id, categoria) {
+    await api(`/api/admin/logs/${id}/categoria`, { method: "POST", body: JSON.stringify({ categoria }) });
+    // aggiorna solo il dato in memoria, senza ricaricare tutto dal server
+    const l = lastLogs.find((x) => x.id === id);
+    if (l) l.categoria = categoria || null;
+    const f = lastFaqs.find((x) => x.id === id);
+    if (f) f.categoria = categoria || null;
   }
 
   async function toggleFaq(id, value) {
@@ -447,10 +686,11 @@
       Qualifica: l.qualifica || "",
       Domanda: l.domanda || "",
       Risposta: l.risposta || "",
+      Categoria: l.categoria || "",
       FAQ: l.faq ? "Sì" : "No",
       Data: l.timestamp || "",
     }));
-    writeExcelFile(data, [18, 14, 14, 16, 40, 60, 6, 18], "domande-fipav");
+    writeExcelFile(data, [18, 14, 14, 16, 40, 60, 22, 6, 18], "domande-fipav");
   }
 
   function exportFaqsToExcel() {
@@ -462,9 +702,10 @@
       Qualifica: l.qualifica || "",
       Domanda: l.domanda || "",
       Risposta: l.risposta || "",
+      Categoria: l.categoria || "",
       Data: l.timestamp || "",
     }));
-    writeExcelFile(data, [16, 18, 14, 14, 16, 40, 60, 18], "faq-fipav");
+    writeExcelFile(data, [16, 18, 14, 14, 16, 40, 60, 22, 18], "faq-fipav");
   }
 
   function writeExcelFile(data, colWidths, filenamePrefix) {
@@ -527,6 +768,18 @@
       msgEl.textContent = err.message;
     }
   }
+
+  // popola il filtro "Categoria" nella tab Domande con l'elenco categorie disponibili
+  (function initCategoriaFilter() {
+    const sel = document.getElementById("logs-categoria-filter");
+    if (!sel) return;
+    CATEGORIE.forEach((c) => {
+      const opt = document.createElement("option");
+      opt.value = c;
+      opt.textContent = c;
+      sel.appendChild(opt);
+    });
+  })();
 
   // login automatico se password già salvata in sessione
   if (adminPassword) {
