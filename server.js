@@ -24,6 +24,7 @@ const {
   addLog,
   listLogs,
   setLogFaq,
+  setLogCategoria,
   listFaqs,
   addManualFaq,
 } = require("./db");
@@ -352,6 +353,12 @@ app.post("/api/admin/reload-docs", requireAdmin, async (req, res) => {
 app.post("/api/admin/logs/:id/faq", requireAdmin, (req, res) => {
   const { faq } = req.body;
   setLogFaq(req.params.id, !!faq);
+  res.json({ ok: true });
+});
+
+app.post("/api/admin/logs/:id/categoria", requireAdmin, (req, res) => {
+  const { categoria } = req.body;
+  setLogCategoria(req.params.id, categoria ? String(categoria).trim() : null);
   res.json({ ok: true });
 });
 
