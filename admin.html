@@ -192,6 +192,7 @@
       <table>
         <thead>
           <tr>
+            <th class="sortable" data-table="logs" data-col="id" onclick="toggleSort('logs','id')">ID <span class="arrow">▾</span></th>
             <th class="sortable" data-table="logs" data-col="societa" onclick="toggleSort('logs','societa')">Società <span class="arrow">▾</span></th>
             <th class="sortable" data-table="logs" data-col="utente" onclick="toggleSort('logs','utente')">Utente <span class="arrow">▾</span></th>
             <th class="sortable" data-table="logs" data-col="domanda" onclick="toggleSort('logs','domanda')">Domanda <span class="arrow">▾</span></th>
@@ -201,6 +202,7 @@
             <th></th>
           </tr>
           <tr class="filter-row">
+            <th><input type="text" oninput="setFilter('logs','id',this.value)" placeholder="Filtra..." /></th>
             <th><input type="text" oninput="setFilter('logs','societa',this.value)" placeholder="Filtra..." /></th>
             <th><input type="text" oninput="setFilter('logs','utente',this.value)" placeholder="Filtra..." /></th>
             <th><input type="text" oninput="setFilter('logs','domanda',this.value)" placeholder="Filtra..." /></th>
@@ -578,6 +580,7 @@
   }
 
   const logsGetters = {
+    id: (l) => l.id,
     societa: (l) => l.societa || "",
     utente: (l) => `${l.nome || ""} ${l.cognome || ""} ${l.qualifica || ""}`,
     domanda: (l) => l.domanda || "",
@@ -590,13 +593,14 @@
     const tbody = document.getElementById("logs-tbody");
     const rows = applyFiltersAndSort(logs, tableState.logs, logsGetters);
     if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="color:var(--muted);">Nessuna domanda corrisponde ai filtri impostati.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="color:var(--muted);">Nessuna domanda corrisponde ai filtri impostati.</td></tr>`;
       return;
     }
     tbody.innerHTML = rows
       .map(
         (l) => `
       <tr>
+        <td>${l.id}</td>
         <td>${l.societa ? escapeHtml(l.societa) : "<em>—</em>"}</td>
         <td>${escapeHtml(l.nome || "")} ${escapeHtml(l.cognome || "")}<br><span style="color:var(--muted); font-size:11px;">${escapeHtml(l.qualifica || "")}</span></td>
         <td>${escapeHtml(l.domanda)}</td>
