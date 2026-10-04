@@ -46,18 +46,22 @@ CREATE TABLE IF NOT EXISTS logs (
   domanda TEXT NOT NULL,
   risposta TEXT,
   faq INTEGER NOT NULL DEFAULT 0,
+  categoria TEXT,
   timestamp TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 `);
 
 // Migrazioni: se il database esisteva già prima di queste colonne, aggiungile.
+// Ogni istruzione aggiunge SOLO una nuova colonna (mai cancella o svuota dati
+// esistenti); se la colonna c'è già, l'errore viene ignorato e si continua.
 for (const stmt of [
   "ALTER TABLE users ADD COLUMN societa TEXT",
   "ALTER TABLE users ADD COLUMN codice_societa TEXT",
   "ALTER TABLE logs ADD COLUMN faq INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE users ADD COLUMN blocked_reason TEXT",
   "ALTER TABLE users ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE logs ADD COLUMN categoria TEXT",
 ]) {
   try {
     db.exec(stmt);
@@ -193,8 +197,8 @@ function addManualFaq(domanda, risposta) {
 
 function listLogs(limit = 500) {
   return db
-    .prepare(`SELECT logs.id, logs.user_id, users.societa, logs.nome, logs.cognome, logs.qualifica,
-                     logs.domanda, logs.risposta, logs.faq, logs.timestamp
+    .prepare(`SELECT logs.id, logs.user_id, users.societa, users.codice_societa, logs.nome, logs.cognome, logs.qualifica,
+                     logs.domanda, logs.risposta, logs.faq, logs.categoria, logs.timestamp
               FROM logs
               LEFT JOIN users ON logs.user_id = users.id
               ORDER BY logs.timestamp DESC LIMIT ?`)
@@ -205,10 +209,14 @@ function setLogFaq(id, faq) {
   db.prepare("UPDATE logs SET faq = ? WHERE id = ?").run(faq ? 1 : 0, id);
 }
 
+function setLogCategoria(id, categoria) {
+  db.prepare("UPDATE logs SET categoria = ? WHERE id = ?").run(categoria || null, id);
+}
+
 function listFaqs() {
   return db
     .prepare(`SELECT logs.id, logs.user_id, users.societa, users.codice_societa, logs.nome, logs.cognome, logs.qualifica,
-                     logs.domanda, logs.risposta, logs.faq, logs.timestamp
+                     logs.domanda, logs.risposta, logs.faq, logs.categoria, logs.timestamp
               FROM logs
               LEFT JOIN users ON logs.user_id = users.id
               WHERE logs.faq = 1 ORDER BY logs.timestamp DESC`)
@@ -236,6 +244,7 @@ module.exports = {
   addLog,
   listLogs,
   setLogFaq,
+  setLogCategoria,
   listFaqs,
   addManualFaq,
 };
