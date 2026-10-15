@@ -577,7 +577,7 @@
             <td>${statusPill}</td>
             <td>${u.last_login ? escapeHtml(u.last_login) : "mai"}</td>
             <td class="row-actions">
-              <button onclick="changeEmail(${u.id}, ${JSON.stringify(u.email || "")})">Modifica mail</button>
+              <button onclick="changeEmail(${u.id}, ${escapeHtml(JSON.stringify(u.email || ""))})">Modifica mail</button>
               <button onclick="changePassword(${u.id})">Cambia password</button>
               <button onclick="resetCounter(${u.id})">Azzera contatore</button>
               ${
