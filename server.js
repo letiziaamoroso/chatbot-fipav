@@ -23,6 +23,7 @@ const {
   getSession,
   addLog,
   listLogs,
+  listLogsForUser,
   setLogFaq,
   setLogCategoria,
   listFaqs,
@@ -49,6 +50,19 @@ const DOCS_DIR = path.join(__dirname, "docs");
 // ---------------------------------------------------------------------------
 const mammoth = require("mammoth");
 const { buildIndex, search } = require("./retrieval");
+const { findLink } = require("./links");
+
+// Dato un documento/sezione, trova il link ufficiale corrispondente (se
+// riconosciuto nella tabella docs-links.json) da mostrare insieme alla
+// citazione della fonte. Usa SOLO la sezione (il PDF originale specifico,
+// es. "Regolamento Affiliazione e Tesseramento 2024") e non il nome del
+// documento generale (es. "Documenti Istituzionali (Statuto, Regolamenti...)"),
+// che è volutamente descrittivo/ampio e darebbe match falsi. Meglio nessun
+// link che un link sbagliato.
+function linkResolver(source, section) {
+  const match = findLink(section);
+  return match ? match.link : null;
+}
 
 // Nomi "leggibili" mostrati nelle citazioni delle fonti, al posto del nome
 // tecnico del file. Se un nuovo documento viene aggiunto senza essere elencato
@@ -127,15 +141,18 @@ function buildSystemPrompt(relevantText) {
   return `Sei l'assistente virtuale del Comitato Regionale FIPAV Marche. Rispondi alle domande degli utenti ESCLUSIVAMENTE sulla base degli estratti di documentazione forniti qui sotto (selezionati automaticamente come i più pertinenti alla domanda).
 
 Gli estratti sono organizzati in blocchi preceduti da un'intestazione del tipo:
-===== DOCUMENTO: <nome documento> | SEZIONE: <nome sezione o "generale"> =====
+===== DOCUMENTO: <nome documento> | SEZIONE: <nome sezione o "generale"> | DATA: <data o stagione, se nota> | LINK: <url, se noto> =====
+(DATA e LINK compaiono solo quando disponibili: non tutti i blocchi li hanno.)
 
 Regole:
 - Rispondi in italiano, in modo chiaro e cordiale.
 - IMPORTANTE: dai sempre una risposta completa e ben formata. Se stai elencando categorie, punti o un elenco, riportali per intero, non fermarti a metà.
 - Sii conciso ma completo: rispondi a quanto viene chiesto senza lasciare frasi a metà.
-- CITAZIONE DELLA FONTE (obbligatoria in ogni risposta che non sia NON_TROVATO): alla fine della risposta aggiungi sempre una riga separata che inizia con "Fonte:" seguita dal/i nome/i di DOCUMENTO e, quando la SEZIONE non è "generale", anche dalla SEZIONE, copiati esattamente come compaiono nell'intestazione del blocco da cui hai preso l'informazione. Se hai usato più blocchi, elenca tutte le fonti separate da un punto e virgola. Esempi:
-  Fonte: Documenti Istituzionali (Statuto, Regolamenti, Normativa federale) — Regolamento Affiliazione e Tesseramento 2024
-  Fonte: Guida Pratica Campionati Indoor — Guida pratica_Allenatori_2627; Documenti Istituzionali (Statuto, Regolamenti, Normativa federale) — Statuto FIPAV - 2025 - definitivo
+- PRIORITÀ ALLE FONTI PIÙ RECENTI: se due blocchi riportano informazioni discordanti sullo stesso argomento (es. regole o importi cambiati da una stagione all'altra) e hanno entrambi un campo DATA, usa SEMPRE l'informazione del blocco con la data più recente, e segnalalo brevemente nella risposta (es. "la normativa più recente, aggiornata al ..., prevede che..."). Se la data non è indicata in nessuno dei due blocchi, non puoi dedurre quale sia più recente: in quel caso segnala la discordanza all'utente invece di sceglierne una a caso.
+- CITAZIONE DELLA FONTE (obbligatoria in ogni risposta che non sia NON_TROVATO): alla fine della risposta aggiungi sempre una riga separata che inizia con "Fonte:" seguita dal/i nome/i di DOCUMENTO e, quando la SEZIONE non è "generale", anche dalla SEZIONE, copiati esattamente come compaiono nell'intestazione del blocco da cui hai preso l'informazione. Se il blocco ha un campo LINK, aggiungi il link tra parentesi subito dopo. Se hai usato più blocchi, elenca tutte le fonti separate da un punto e virgola. Esempi:
+  Fonte: Documenti Istituzionali (Statuto, Regolamenti, Normativa federale) — Regolamento Affiliazione e Tesseramento 2024 (https://www.federvolley.it/regolamenti-0)
+  Fonte: Guida Pratica Campionati Indoor — Guida pratica_Allenatori_2627; Documenti Istituzionali (Statuto, Regolamenti, Normativa federale) — Statuto FIPAV - 2025 - definitivo (https://www.federvolley.it/statuto)
+- NON inventare MAI un link: usa solo quelli che compaiono esplicitamente come LINK nell'intestazione del blocco. Se un blocco non ha LINK, cita solo documento e sezione, senza link.
 - Se la risposta NON si trova chiaramente negli estratti forniti, NON inventare nulla e NON scrivere una risposta normale (e in questo caso NON aggiungere la riga "Fonte:"). Rispondi invece ESATTAMENTE in questo formato, senza aggiungere altro testo:
 ${NOT_FOUND_MARKER} <qui riscrivi la domanda in modo più chiaro e dettagliato, usando la terminologia tecnica e ufficiale prevista dalla normativa/regolamenti FIPAV, per tentare una nuova ricerca più precisa>
 
@@ -182,7 +199,7 @@ async function askClaude(domanda) {
   let currentQuery = domanda;
 
   for (let attempt = 0; attempt <= MAX_REFORMULATIONS; attempt++) {
-    const { text: relevantText } = search(DOCS_INDEX, currentQuery, 120000, 50);
+    const { text: relevantText } = search(DOCS_INDEX, currentQuery, 120000, 50, linkResolver);
     const answer = await callClaude(buildSystemPrompt(relevantText), currentQuery);
 
     if (!answer.startsWith(NOT_FOUND_MARKER)) {
@@ -250,7 +267,12 @@ app.post("/api/register", requireSession, (req, res) => {
   res.json({ ok: true });
 });
 
-// 3. Domanda al chatbot
+// 3. Domande già fatte dalla propria società (per evitare ripetizioni)
+app.get("/api/mie-domande", requireSession, (req, res) => {
+  res.json(listLogsForUser(req.user.id));
+});
+
+// 4. Domanda al chatbot
 app.post("/api/chat", requireSession, async (req, res) => {
   const { domanda } = req.body;
   if (!domanda || !domanda.trim()) {
