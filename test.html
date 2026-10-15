@@ -177,6 +177,82 @@
     margin-top:16px;
     word-break:break-all;
   }
+
+  #app .faq-box {
+    background:#EFE9DD;
+    border-radius:10px;
+    padding:10px 12px;
+    margin-bottom:12px;
+  }
+
+  #app .faq-toggle {
+    background:none;
+    border:none;
+    cursor:pointer;
+    width:100%;
+    text-align:left;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:12.5px;
+    font-weight:700;
+    color:#16305C;
+    padding:0;
+  }
+
+  #app .faq-toggle .faq-caret {
+    transition: transform 0.15s ease;
+  }
+
+  #app .faq-toggle.open .faq-caret {
+    transform: rotate(90deg);
+  }
+
+  #app .faq-list {
+    display:none;
+    margin-top:10px;
+  }
+
+  #app .faq-list.open {
+    display:block;
+  }
+
+  #app .faq-item {
+    border-top:1px solid #DDD5C7;
+    padding:8px 0;
+  }
+
+  #app .faq-item:first-child {
+    border-top:none;
+    padding-top:0;
+  }
+
+  #app .faq-q {
+    font-size:12.5px;
+    font-weight:600;
+    color:#16305C;
+    cursor:pointer;
+    margin:0;
+  }
+
+  #app .faq-a {
+    font-size:12px;
+    color:#2A2A2A;
+    margin:6px 0 0;
+    display:none;
+    white-space:pre-wrap;
+    line-height:1.45;
+  }
+
+  #app .faq-a.open {
+    display:block;
+  }
+
+  #app .faq-meta {
+    font-size:10.5px;
+    color:#7A7264;
+    margin-top:2px;
+  }
 </style>
 
 
@@ -849,6 +925,64 @@ function renderRegisterStep() {
 
 
 /* =========================================================
+   ELENCO DOMANDE GIÀ FATTE DALLA SOCIETÀ
+   (per evitare ripetizioni di domande già poste)
+========================================================= */
+
+async function renderMieDomande() {
+
+  let domande = [];
+
+  try {
+    domande = await api("/api/mie-domande");
+  } catch {
+    return; // se la chiamata fallisce, non blocchiamo la chat
+  }
+
+  if (!Array.isArray(domande) || domande.length === 0) return;
+
+  const faqBox = document.createElement("div");
+  faqBox.className = "faq-box";
+
+  faqBox.innerHTML = `
+    <button class="faq-toggle" id="faq-toggle" type="button">
+      <span>📋 Domande già fatte dalla tua società (${domande.length})</span>
+      <span class="faq-caret">▶</span>
+    </button>
+    <div class="faq-list" id="faq-list"></div>
+  `;
+
+  const toggleBtn = faqBox.querySelector("#faq-toggle");
+  const list = faqBox.querySelector("#faq-list");
+
+  domande.forEach((d, i) => {
+    const item = document.createElement("div");
+    item.className = "faq-item";
+    const dataStr = d.timestamp
+      ? new Date(d.timestamp.replace(" ", "T") + "Z").toLocaleDateString("it-IT")
+      : "";
+    item.innerHTML = `
+      <p class="faq-q">❓ ${d.domanda}</p>
+      <div class="faq-meta">${[d.nome, d.cognome].filter(Boolean).join(" ")}${dataStr ? " · " + dataStr : ""}</div>
+      <p class="faq-a" id="faq-a-${i}">${d.risposta || "(risposta non disponibile)"}</p>
+    `;
+    item.querySelector(".faq-q").addEventListener("click", () => {
+      item.querySelector(".faq-a").classList.toggle("open");
+    });
+    list.appendChild(item);
+  });
+
+  toggleBtn.addEventListener("click", () => {
+    toggleBtn.classList.toggle("open");
+    list.classList.toggle("open");
+  });
+
+  document.getElementById("messages-wrap").appendChild(faqBox);
+
+}
+
+
+/* =========================================================
    CHAT
 ========================================================= */
 
@@ -861,6 +995,8 @@ function startChat(nome) {
       <b>${nome || "utente"}</b>
       — backend online reale
     </div>
+
+    <div id="messages-wrap"></div>
 
     <div
       class="messages"
@@ -896,6 +1032,8 @@ function startChat(nome) {
 
   `;
 
+
+  renderMieDomande();
 
   addMessage(
     "Buongiorno, come posso aiutarti?",
