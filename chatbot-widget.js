@@ -266,7 +266,7 @@
       try {
         const data = await api("/api/login", { method: "POST", body: JSON.stringify({ password }) });
         saveSession({ token: data.token });
-        showInstructionsStep(data.token);
+        showInstructionsStep(data.token, !!data.needsEmail);
       } catch (err) {
         errEl.textContent = err.message;
         errEl.style.display = "block";
@@ -277,7 +277,7 @@
   }
 
   // ---------- Step 2: istruzioni ----------
-function showInstructionsStep(token) {
+function showInstructionsStep(token, needsEmail) {
   body.innerHTML = "";
 
   const wrap = document.createElement("div");
@@ -401,12 +401,13 @@ function showInstructionsStep(token) {
   body.appendChild(wrap);
 
   wrap.querySelector("#fpv-instr-continue").addEventListener("click", () => {
-    showRegisterStep(token);
+    showRegisterStep(token, needsEmail);
   });
 }
 
   // ---------- Step 2: nome/cognome/qualifica (sempre richiesto: il codice è condiviso) ----------
-  function showRegisterStep(token) {
+  // + mail società (richiesta solo la prima volta, poi resta fissa per la società)
+  function showRegisterStep(token, needsEmail) {
     body.innerHTML = "";
     const opts = CONFIG.QUALIFICHE.map((q) => `<option value="${q}">${q}</option>`).join("");
     const wrap = document.createElement("div");
@@ -419,6 +420,11 @@ function showInstructionsStep(token) {
         <option value="" disabled selected>Seleziona la qualifica...</option>
         ${opts}
       </select>
+      ${
+        needsEmail
+          ? `<input type="email" class="fpv-input" id="fpv-email" placeholder="Mail società (una sola volta)" />`
+          : ""
+      }
       <div class="fpv-error" id="fpv-reg-error" style="display:none;"></div>
       <button class="fpv-btn" id="fpv-reg-submit">Continua</button>
     `;
@@ -428,14 +434,23 @@ function showInstructionsStep(token) {
       const nome = wrap.querySelector("#fpv-nome").value.trim();
       const cognome = wrap.querySelector("#fpv-cognome").value.trim();
       const qualifica = wrap.querySelector("#fpv-qualifica").value;
+      const emailField = wrap.querySelector("#fpv-email");
+      const email = emailField ? emailField.value.trim() : undefined;
       errEl.style.display = "none";
       if (!nome || !cognome || !qualifica) {
         errEl.textContent = "Compila tutti i campi.";
         errEl.style.display = "block";
         return;
       }
+      if (needsEmail && !email) {
+        errEl.textContent = "Inserisci la mail della società.";
+        errEl.style.display = "block";
+        return;
+      }
       try {
-        await api("/api/register", { method: "POST", body: JSON.stringify({ nome, cognome, qualifica }) });
+        const payload = { nome, cognome, qualifica };
+        if (needsEmail) payload.email = email;
+        await api("/api/register", { method: "POST", body: JSON.stringify(payload) });
         saveSession({ token, registered: true });
         startChat();
       } catch (err) {
