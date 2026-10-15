@@ -154,7 +154,6 @@
             <th class="sortable" data-table="users" data-col="id" onclick="toggleSort('users','id')">ID <span class="arrow">▾</span></th>
             <th class="sortable" data-table="users" data-col="societa" onclick="toggleSort('users','societa')">Nome società <span class="arrow">▾</span></th>
             <th class="sortable" data-table="users" data-col="codice_societa" onclick="toggleSort('users','codice_societa')">Codice società <span class="arrow">▾</span></th>
-            <th class="sortable" data-table="users" data-col="email" onclick="toggleSort('users','email')">Mail società <span class="arrow">▾</span></th>
             <th class="sortable" data-table="users" data-col="password" onclick="toggleSort('users','password')">Password <span class="arrow">▾</span></th>
             <th class="sortable" data-table="users" data-col="question_count" onclick="toggleSort('users','question_count')">Domande <span class="arrow">▾</span></th>
             <th class="sortable" data-table="users" data-col="stato" onclick="toggleSort('users','stato')">Stato <span class="arrow">▾</span></th>
@@ -165,7 +164,6 @@
             <th><input type="text" oninput="setFilter('users','id',this.value)" placeholder="Filtra..." /></th>
             <th><input type="text" oninput="setFilter('users','societa',this.value)" placeholder="Filtra..." /></th>
             <th><input type="text" oninput="setFilter('users','codice_societa',this.value)" placeholder="Filtra..." /></th>
-            <th><input type="text" oninput="setFilter('users','email',this.value)" placeholder="Filtra..." /></th>
             <th><input type="text" oninput="setFilter('users','password',this.value)" placeholder="Filtra..." /></th>
             <th></th>
             <th>
@@ -274,10 +272,6 @@
           <input type="text" id="new-codice-societa" placeholder="es. AN001" />
         </div>
         <div class="field">
-          <label>Mail società (opzionale)</label>
-          <input type="email" id="new-email" placeholder="es. segreteria@pallavoloancona.it" />
-        </div>
-        <div class="field">
           <label>Password</label>
           <input type="text" id="new-password" placeholder="es. ancona2026" />
         </div>
@@ -286,8 +280,7 @@
       <p style="font-size:12px; color:var(--muted); margin-top:10px;">
         La password può essere condivisa da più persone della stessa società (presidente, dirigenti,
         allenatori, ecc.): ognuno indicherà nome, cognome e qualifica ad ogni accesso, e lo vedrai
-        nella cronologia delle domande. Nome e codice società sono obbligatori; se lasci vuota la mail,
-        verrà richiesta direttamente alla società al primo accesso alla chat.
+        nella cronologia delle domande. Nome e codice società sono obbligatori.
       </p>
       <div id="add-user-msg"></div>
     </div>
@@ -464,12 +457,19 @@
     }
     if (state.sort.col && getters[state.sort.col]) {
       const getter = getters[state.sort.col];
+      // Un valore è "numero puro" solo se è interamente una cifra (es. "42"),
+      // MAI se è una data/orario come "2026-10-15 08:09:30": prima usavamo
+      // parseFloat, che legge solo le prime cifre iniziali ("2026") e quindi
+      // considerava uguali tutte le date dello stesso anno, rendendo
+      // l'ordinamento per data/ora inefficace. Le date, essendo già nel
+      // formato AAAA-MM-GG HH:MM:SS, si ordinano correttamente anche come
+      // semplice confronto testuale.
+      const isPureNumber = (v) => /^-?\d+([.,]\d+)?$/.test(String(v ?? "").trim());
       out = [...out].sort((a, b) => {
         const va = getter(a), vb = getter(b);
-        const na = parseFloat(va), nb = parseFloat(vb);
         let cmp;
-        if (!isNaN(na) && !isNaN(nb) && String(va).trim() !== "" && String(vb).trim() !== "") {
-          cmp = na - nb;
+        if (isPureNumber(va) && isPureNumber(vb)) {
+          cmp = parseFloat(String(va).replace(",", ".")) - parseFloat(String(vb).replace(",", "."));
         } else {
           cmp = String(va ?? "").localeCompare(String(vb ?? ""), "it", { sensitivity: "base" });
         }
@@ -527,7 +527,6 @@
     id: (u) => u.id,
     societa: (u) => u.societa || "",
     codice_societa: (u) => u.codice_societa || "",
-    email: (u) => u.email || "",
     password: (u) => u.password || "",
     question_count: (u) => u.question_count,
     stato: (u) => statusKey(u),
@@ -538,7 +537,7 @@
     const tbody = document.getElementById("users-tbody");
     const rows = applyFiltersAndSort(users, tableState.users, usersGetters);
     if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="9" style="color:var(--muted);">Nessuna società corrisponde ai filtri impostati.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="color:var(--muted);">Nessuna società corrisponde ai filtri impostati.</td></tr>`;
       return;
     }
     tbody.innerHTML = rows
@@ -556,13 +555,11 @@
             <td>${u.id}</td>
             <td>${u.societa ? escapeHtml(u.societa) : "<em>—</em>"}</td>
             <td>${u.codice_societa ? escapeHtml(u.codice_societa) : "<em>—</em>"}</td>
-            <td>${u.email ? escapeHtml(u.email) : "<em>—</em>"}</td>
             <td><code>${escapeHtml(u.password)}</code></td>
             <td>${u.question_count} / ${MAX_QUESTIONS}</td>
             <td>${statusPill}</td>
             <td>${u.last_login ? escapeHtml(u.last_login) : "mai"}</td>
             <td class="row-actions">
-              <button onclick="changeEmail(${u.id}, ${JSON.stringify(u.email || "")})">Modifica mail</button>
               <button onclick="changePassword(${u.id})">Cambia password</button>
               <button onclick="resetCounter(${u.id})">Azzera contatore</button>
               ${
@@ -753,16 +750,6 @@
       alert(err.message);
     }
   }
-  async function changeEmail(id, current) {
-    const nuova = prompt("Inserisci la mail società (lascia vuoto per rimuoverla):", current || "");
-    if (nuova === null) return; // l'utente ha annullato
-    try {
-      await api(`/api/admin/users/${id}/email`, { method: "POST", body: JSON.stringify({ email: nuova.trim() }) });
-      loadAll();
-    } catch (err) {
-      alert(err.message);
-    }
-  }
   async function deleteUser(id) {
     if (!confirm("Eliminare definitivamente questa società e la sua cronologia?")) return;
     await api(`/api/admin/users/${id}`, { method: "DELETE" });
@@ -771,7 +758,6 @@
   async function addUser() {
     const societa = document.getElementById("new-societa").value.trim();
     const codiceSocieta = document.getElementById("new-codice-societa").value.trim();
-    const email = document.getElementById("new-email").value.trim();
     const password = document.getElementById("new-password").value.trim();
     const msgEl = document.getElementById("add-user-msg");
     msgEl.textContent = "";
@@ -781,12 +767,11 @@
       return;
     }
     try {
-      await api("/api/admin/users", { method: "POST", body: JSON.stringify({ password, societa, codiceSocieta, email }) });
+      await api("/api/admin/users", { method: "POST", body: JSON.stringify({ password, societa, codiceSocieta }) });
       msgEl.style.color = "#22682B";
       msgEl.textContent = "Società creata.";
       document.getElementById("new-societa").value = "";
       document.getElementById("new-codice-societa").value = "";
-      document.getElementById("new-email").value = "";
       document.getElementById("new-password").value = "";
       loadAll();
     } catch (err) {
