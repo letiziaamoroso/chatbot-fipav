@@ -124,6 +124,29 @@
     .fpv-msg.bot .fpv-bubble { background: #EFE9DD; color: #2A2A2A; border-bottom-left-radius: 4px; }
     .fpv-msg.system .fpv-bubble { background: transparent; color: #7A7264; font-size: 12px; text-align: center; margin: 0 auto; }
 
+    .fpv-faq-box {
+      background: #EFE9DD; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;
+    }
+    .fpv-faq-toggle {
+      background: none; border: none; cursor: pointer; width: 100%; text-align: left;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12.5px; font-weight: 700; color: #16305C; padding: 0;
+    }
+    .fpv-faq-toggle .fpv-faq-caret { transition: transform 0.15s ease; }
+    .fpv-faq-toggle.open .fpv-faq-caret { transform: rotate(90deg); }
+    .fpv-faq-list { display: none; margin-top: 10px; }
+    .fpv-faq-list.open { display: block; }
+    .fpv-faq-item { border-top: 1px solid #DDD5C7; padding: 8px 0; }
+    .fpv-faq-item:first-child { border-top: none; padding-top: 0; }
+    .fpv-faq-q {
+      font-size: 12.5px; font-weight: 600; color: #16305C; cursor: pointer; margin: 0;
+    }
+    .fpv-faq-a {
+      font-size: 12px; color: #2A2A2A; margin: 6px 0 0; display: none; white-space: pre-wrap; line-height: 1.45;
+    }
+    .fpv-faq-a.open { display: block; }
+    .fpv-faq-meta { font-size: 10.5px; color: #7A7264; margin-top: 2px; }
+
     .fpv-footer { border-top: 1px solid #EEE7D9; padding: 10px 12px; display: flex; gap: 8px; }
     .fpv-footer input {
       flex: 1; border: 1.5px solid #DDD5C7; border-radius: 20px; padding: 9px 14px; font-size: 13.5px;
@@ -422,10 +445,56 @@ function showInstructionsStep(token) {
     });
   }
 
+  // ---------- Elenco domande già fatte dalla società (per evitare ripetizioni) ----------
+  async function renderMieDomande() {
+    let domande = [];
+    try {
+      domande = await api("/api/mie-domande");
+    } catch {
+      return; // se la chiamata fallisce, semplicemente non mostriamo il box (non blocca la chat)
+    }
+    if (!Array.isArray(domande) || domande.length === 0) return;
+
+    const box = document.createElement("div");
+    box.className = "fpv-faq-box";
+    box.innerHTML = `
+      <button class="fpv-faq-toggle" id="fpv-faq-toggle" type="button">
+        <span>📋 Domande già fatte dalla tua società (${domande.length})</span>
+        <span class="fpv-faq-caret">▶</span>
+      </button>
+      <div class="fpv-faq-list" id="fpv-faq-list"></div>
+    `;
+    const toggleBtn = box.querySelector("#fpv-faq-toggle");
+    const list = box.querySelector("#fpv-faq-list");
+
+    domande.forEach((d, i) => {
+      const item = document.createElement("div");
+      item.className = "fpv-faq-item";
+      const dataStr = d.timestamp ? new Date(d.timestamp.replace(" ", "T") + "Z").toLocaleDateString("it-IT") : "";
+      item.innerHTML = `
+        <p class="fpv-faq-q">❓ ${d.domanda}</p>
+        <div class="fpv-faq-meta">${[d.nome, d.cognome].filter(Boolean).join(" ")}${dataStr ? " · " + dataStr : ""}</div>
+        <p class="fpv-faq-a" id="fpv-faq-a-${i}">${d.risposta || "(risposta non disponibile)"}</p>
+      `;
+      item.querySelector(".fpv-faq-q").addEventListener("click", () => {
+        item.querySelector(".fpv-faq-a").classList.toggle("open");
+      });
+      list.appendChild(item);
+    });
+
+    toggleBtn.addEventListener("click", () => {
+      toggleBtn.classList.toggle("open");
+      list.classList.toggle("open");
+    });
+
+    body.appendChild(box);
+  }
+
   // ---------- Step 3: chat ----------
   function startChat() {
     body.innerHTML = "";
     footer.style.display = "flex";
+    renderMieDomande();
     addMsg("Buongiorno, come posso aiutarti?", "bot");
     input.focus();
   }
