@@ -300,6 +300,7 @@
     "Allenatori e Tecnici",
     "Beach Volley",
     "Minivolley e Scuola",
+    "Sitting Volley",
     "Normativa e Statuto",
     "Altro",
   ];
@@ -457,19 +458,12 @@
     }
     if (state.sort.col && getters[state.sort.col]) {
       const getter = getters[state.sort.col];
-      // Un valore è "numero puro" solo se è interamente una cifra (es. "42"),
-      // MAI se è una data/orario come "2026-10-15 08:09:30": prima usavamo
-      // parseFloat, che legge solo le prime cifre iniziali ("2026") e quindi
-      // considerava uguali tutte le date dello stesso anno, rendendo
-      // l'ordinamento per data/ora inefficace. Le date, essendo già nel
-      // formato AAAA-MM-GG HH:MM:SS, si ordinano correttamente anche come
-      // semplice confronto testuale.
-      const isPureNumber = (v) => /^-?\d+([.,]\d+)?$/.test(String(v ?? "").trim());
       out = [...out].sort((a, b) => {
         const va = getter(a), vb = getter(b);
+        const na = parseFloat(va), nb = parseFloat(vb);
         let cmp;
-        if (isPureNumber(va) && isPureNumber(vb)) {
-          cmp = parseFloat(String(va).replace(",", ".")) - parseFloat(String(vb).replace(",", "."));
+        if (!isNaN(na) && !isNaN(nb) && String(va).trim() !== "" && String(vb).trim() !== "") {
+          cmp = na - nb;
         } else {
           cmp = String(va ?? "").localeCompare(String(vb ?? ""), "it", { sensitivity: "base" });
         }
