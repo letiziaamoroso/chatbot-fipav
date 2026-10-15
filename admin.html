@@ -51,7 +51,8 @@
   .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
   .card h2 { font-size: 15px; margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; min-width: 920px; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; }
   tr:last-child td { border-bottom: none; }
@@ -148,6 +149,7 @@
     <div id="tab-users" class="card">
       <h2>Elenco società</h2>
       <div class="filter-bar"><button onclick="clearFilters('users')">Cancella filtri</button></div>
+      <div class="table-scroll">
       <table>
         <thead>
           <tr>
@@ -183,6 +185,7 @@
         </thead>
         <tbody id="users-tbody"></tbody>
       </table>
+      </div>
     </div>
 
     <div id="tab-logs" class="card hidden">
@@ -191,6 +194,7 @@
         <button class="btn" onclick="exportLogsToExcel()">Esporta in Excel</button>
       </h2>
       <div class="filter-bar"><button onclick="clearFilters('logs')">Cancella filtri</button></div>
+      <div class="table-scroll">
       <table>
         <thead>
           <tr>
@@ -221,6 +225,7 @@
         </thead>
         <tbody id="logs-tbody"></tbody>
       </table>
+      </div>
     </div>
 
     <div id="tab-faqs" class="card hidden">
@@ -243,6 +248,7 @@
       <div id="add-faq-msg" style="font-size:12.5px; margin:-8px 0 14px;"></div>
 
       <div class="filter-bar"><button onclick="clearFilters('faqs')">Cancella filtri</button></div>
+      <div class="table-scroll">
       <table>
         <thead>
           <tr>
@@ -260,6 +266,7 @@
         </thead>
         <tbody id="faqs-tbody"></tbody>
       </table>
+      </div>
     </div>
 
     <div id="tab-add" class="card hidden">
