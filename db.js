@@ -195,6 +195,15 @@ function addManualFaq(domanda, risposta) {
   addLog(sysUser.id, null, null, "Admin", domanda, risposta, 1);
 }
 
+// Tutte le domande/risposte già ottenute da una data società (cioè da un
+// utente/password), per mostrarle all'utente stesso ed evitare ripetizioni.
+function listLogsForUser(userId, limit = 200) {
+  return db
+    .prepare(`SELECT id, nome, cognome, qualifica, domanda, risposta, categoria, timestamp
+              FROM logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?`)
+    .all(userId, limit);
+}
+
 function listLogs(limit = 500) {
   return db
     .prepare(`SELECT logs.id, logs.user_id, users.societa, users.codice_societa, logs.nome, logs.cognome, logs.qualifica,
@@ -243,6 +252,7 @@ module.exports = {
   getSession,
   addLog,
   listLogs,
+  listLogsForUser,
   setLogFaq,
   setLogCategoria,
   listFaqs,
