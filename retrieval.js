@@ -94,6 +94,49 @@ function chunkText(text, sourceName, chunkSize = 2200, overlap = 400) {
   }));
 }
 
+const MESI_IT = {
+  gennaio: "01", febbraio: "02", marzo: "03", aprile: "04", maggio: "05", giugno: "06",
+  luglio: "07", agosto: "08", settembre: "09", ottobre: "10", novembre: "11", dicembre: "12",
+};
+
+// Prova a riconoscere una data o una stagione sportiva nel nome di una
+// sezione/documento, per poter segnalare al chatbot quale fonte è più
+// recente in caso di informazioni discordanti. Restituisce una stringa da
+// mostrare (es. "24/07/2026", "2026/2027", "2025") oppure null se non
+// riconosce nulla — non è una data precisa al 100%, è solo un indizio.
+function extractDateHint(label) {
+  if (!label) return null;
+
+  // 1) data tipo (24.07.26) o 24.07.2026
+  let m = label.match(/\((\d{1,2})\.(\d{1,2})\.(\d{2,4})\)/) || label.match(/\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b/);
+  if (m) {
+    let [, gg, mm, aa] = m;
+    if (aa.length === 2) aa = (parseInt(aa, 10) > 50 ? "19" : "20") + aa;
+    return `${gg.padStart(2, "0")}/${mm.padStart(2, "0")}/${aa}`;
+  }
+
+  // 2) mese in lettere + anno, es. "luglio 2011"
+  m = label.match(/\b(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})\b/i);
+  if (m) {
+    return `${MESI_IT[m[1].toLowerCase()]}/${m[2]}`;
+  }
+
+  // 3) stagione sportiva tipo 2026/2027 o 26-27 / 26_27 / 2627
+  m = label.match(/\b(20\d{2})[\/\-_](20\d{2})\b/);
+  if (m) return `${m[1]}/${m[2]}`;
+  m = label.match(/\b(\d{2})[\-_](\d{2})\b/);
+  if (m) {
+    const y1 = parseInt(m[1], 10), y2 = parseInt(m[2], 10);
+    if (y2 === y1 + 1 && y1 >= 20 && y1 <= 60) return `20${m[1]}/20${m[2]}`;
+  }
+
+  // 4) anno isolato a 4 cifre (si prende l'ultimo trovato, spesso il più specifico)
+  const years = [...label.matchAll(/\b(20\d{2})\b/g)].map((x) => x[1]);
+  if (years.length > 0) return years[years.length - 1];
+
+  return null;
+}
+
 // Costruisce l'indice a partire da un elenco di { name, content }
 function buildIndex(documents) {
   let chunks = [];
@@ -117,7 +160,11 @@ function buildIndex(documents) {
 // budget massimo di caratteri, per non superare i limiti del modello.
 // Il testo restituito è organizzato per DOCUMENTO e SEZIONE, con intestazioni
 // esplicite che il chatbot deve ricopiare quando cita le proprie fonti.
-function search(index, query, maxChars = 90000, topK = 40) {
+//
+// linkResolver(source, section) è una funzione opzionale che, se fornita,
+// restituisce il link ufficiale di quella fonte (o null/undefined se non
+// trovato): viene aggiunto all'intestazione del blocco come "LINK: ...".
+function search(index, query, maxChars = 90000, topK = 40, linkResolver = null) {
   const { chunks, df, N, avgLen } = index;
   if (N === 0) return { text: "", sources: [] };
 
@@ -169,10 +216,20 @@ function search(index, query, maxChars = 90000, topK = 40) {
   for (const { source, section, texts } of groups.values()) {
     const sectionLabel = section ? section : "generale";
     sources.push(section ? `${source} — ${section}` : source);
-    text += `\n\n===== DOCUMENTO: ${source} | SEZIONE: ${sectionLabel} =====\n` + texts.join("\n\n[...]\n\n");
+
+    let header = `===== DOCUMENTO: ${source} | SEZIONE: ${sectionLabel}`;
+    const dateHint = extractDateHint(section) || extractDateHint(source);
+    if (dateHint) header += ` | DATA: ${dateHint}`;
+    if (typeof linkResolver === "function") {
+      const link = linkResolver(source, section);
+      if (link) header += ` | LINK: ${link}`;
+    }
+    header += " =====\n";
+
+    text += `\n\n${header}` + texts.join("\n\n[...]\n\n");
   }
 
   return { text: text.trim(), sources };
 }
 
-module.exports = { buildIndex, search };
+module.exports = { buildIndex, search, extractDateHint };
