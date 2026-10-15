@@ -62,6 +62,7 @@ for (const stmt of [
   "ALTER TABLE users ADD COLUMN blocked_reason TEXT",
   "ALTER TABLE users ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE logs ADD COLUMN categoria TEXT",
+  "ALTER TABLE users ADD COLUMN email TEXT",
 ]) {
   try {
     db.exec(stmt);
@@ -109,11 +110,18 @@ function incrementQuestionCount(userId) {
   db.prepare("UPDATE users SET question_count = question_count + 1 WHERE id = ?").run(userId);
 }
 
-function addUser(password, societa = null, codiceSocieta = null) {
+function addUser(password, societa = null, codiceSocieta = null, email = null) {
   const stmt = db.prepare(
-    "INSERT INTO users (password, societa, codice_societa, count_month) VALUES (?, ?, ?, ?)"
+    "INSERT INTO users (password, societa, codice_societa, email, count_month) VALUES (?, ?, ?, ?, ?)"
   );
-  return stmt.run(password, societa, codiceSocieta, currentMonth());
+  return stmt.run(password, societa, codiceSocieta, email, currentMonth());
+}
+
+// Imposta/aggiorna la mail della società: è un dato unico per società (come il
+// codice società), non viene richiesto ad ogni accesso. Passare null o "" per
+// svuotarla.
+function setUserEmail(id, email) {
+  db.prepare("UPDATE users SET email = ? WHERE id = ?").run(email && email.trim() ? email.trim() : null, id);
 }
 
 function listUsers() {
@@ -242,6 +250,7 @@ module.exports = {
   ensureCurrentMonth,
   incrementQuestionCount,
   addUser,
+  setUserEmail,
   listUsers,
   deleteUser,
   resetCounter,
