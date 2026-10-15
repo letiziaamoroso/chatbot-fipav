@@ -13,6 +13,7 @@ const {
   ensureCurrentMonth,
   incrementQuestionCount,
   addUser,
+  setUserEmail,
   listUsers,
   deleteUser,
   resetCounter,
@@ -254,14 +255,26 @@ app.post("/api/login", (req, res) => {
   const token = crypto.randomBytes(24).toString("hex");
   createSession(token, user.id);
 
-  res.json({ token });
+  // La mail società è un dato unico per società (come il codice società): la
+  // segnaliamo al widget solo se manca ancora, così chiede di inserirla una
+  // volta sola e non ad ogni accesso.
+  res.json({ token, needsEmail: !user.email });
 });
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // 2. Registrazione nome/cognome/qualifica (ad ogni accesso: il codice è condiviso)
+// + eventualmente la mail società, richiesta solo se non è già stata inserita.
 app.post("/api/register", requireSession, (req, res) => {
-  const { nome, cognome, qualifica } = req.body;
+  const { nome, cognome, qualifica, email } = req.body;
   if (!nome || !cognome || !qualifica) {
     return res.status(400).json({ error: "Nome, cognome e qualifica sono obbligatori." });
+  }
+  if (!req.user.email) {
+    if (!email || !email.trim() || !EMAIL_RE.test(email.trim())) {
+      return res.status(400).json({ error: "Inserisci una mail società valida." });
+    }
+    setUserEmail(req.user.id, email.trim());
   }
   setSessionIdentity(req.sessionToken, nome.trim(), cognome.trim(), qualifica.trim());
   res.json({ ok: true });
@@ -325,10 +338,18 @@ app.get("/api/admin/logs", requireAdmin, (req, res) => {
 });
 
 app.post("/api/admin/users", requireAdmin, (req, res) => {
-  const { password, societa, codiceSocieta } = req.body;
+  const { password, societa, codiceSocieta, email } = req.body;
   if (!password) return res.status(400).json({ error: "Password obbligatoria." });
+  if (email && email.trim() && !EMAIL_RE.test(email.trim())) {
+    return res.status(400).json({ error: "Mail società non valida." });
+  }
   try {
-    addUser(password.trim(), societa ? societa.trim() : null, codiceSocieta ? codiceSocieta.trim() : null);
+    addUser(
+      password.trim(),
+      societa ? societa.trim() : null,
+      codiceSocieta ? codiceSocieta.trim() : null,
+      email ? email.trim() : null
+    );
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: "Password già esistente o dati non validi." });
@@ -365,6 +386,15 @@ app.post("/api/admin/users/:id/password", requireAdmin, (req, res) => {
   } catch (err) {
     res.status(400).json({ error: "Password già in uso da un altro accesso." });
   }
+});
+
+app.post("/api/admin/users/:id/email", requireAdmin, (req, res) => {
+  const { email } = req.body;
+  if (email && email.trim() && !EMAIL_RE.test(email.trim())) {
+    return res.status(400).json({ error: "Mail società non valida." });
+  }
+  setUserEmail(req.params.id, email || null);
+  res.json({ ok: true });
 });
 
 app.post("/api/admin/reload-docs", requireAdmin, async (req, res) => {
