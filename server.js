@@ -79,8 +79,32 @@ const DISPLAY_NAMES = {
   "regole gioco sittin.docx": "Regolamento di Gioco - Sitting Volley",
 };
 
+// DOCUMENTI PRIORITARI: un file il cui nome inizia con "PRIORITA_" (oppure che
+// si trova in una sottocartella chiamata "prioritari") viene consultato per
+// PRIMO dal chatbot; solo se la risposta non c'è lì si passa agli altri.
+const PRIORITY_NAME_RE = /^priorit[aà][_\- ]/i;
+
+function isPriorityFile(relativeName) {
+  const parts = relativeName.split(/[\\/]/);
+  const base = parts[parts.length - 1];
+  const folders = parts.slice(0, -1).map((f) => f.toLowerCase());
+  return PRIORITY_NAME_RE.test(base) || folders.includes("prioritari");
+}
+
 function displayNameFor(relativeName) {
-  return DISPLAY_NAMES[relativeName] || relativeName;
+  if (DISPLAY_NAMES[relativeName]) return DISPLAY_NAMES[relativeName];
+  // Per i documenti prioritari non elencati sopra: nome file senza prefisso,
+  // estensione e underscore (es. "PRIORITA_Circolare_Tesseramento.docx" ->
+  // "Circolare Tesseramento").
+  if (isPriorityFile(relativeName)) {
+    const base = relativeName.split(/[\\/]/).pop();
+    return base
+      .replace(PRIORITY_NAME_RE, "")
+      .replace(/\.(txt|md|docx)$/i, "")
+      .replace(/_+/g, " ")
+      .trim() || relativeName;
+  }
+  return relativeName;
 }
 
 async function loadDocuments() {
@@ -117,28 +141,50 @@ async function loadDocuments() {
       content = fs.readFileSync(filePath, "utf-8");
     }
     if (content && content.trim()) {
-      documents.push({ name: displayNameFor(relativeName), content });
+      documents.push({
+        name: displayNameFor(relativeName),
+        content,
+        priority: isPriorityFile(relativeName),
+      });
     }
   }
   return documents;
 }
 
-let DOCS_INDEX = { chunks: [], df: new Map(), N: 0, avgLen: 0 };
+let DOCS_INDEX = { chunks: [], df: new Map(), N: 0, avgLen: 0, hasPriority: false };
 let TOTAL_DOC_CHARS = 0;
 
 async function reloadDocs() {
   const documents = await loadDocuments();
   TOTAL_DOC_CHARS = documents.reduce((s, d) => s + d.content.length, 0);
   DOCS_INDEX = buildIndex(documents);
+  const priorityDocs = documents.filter((d) => d.priority).map((d) => d.name);
   console.log(
     `Documentazione caricata: ${documents.length} file, ${TOTAL_DOC_CHARS} caratteri totali, ${DOCS_INDEX.chunks.length} sezioni indicizzate.`
+  );
+  console.log(
+    priorityDocs.length
+      ? `Documenti prioritari (consultati per primi): ${priorityDocs.join("; ")}`
+      : "Nessun documento prioritario (nome file che inizia con PRIORITA_)."
   );
 }
 
 const NOT_FOUND_MARKER = "NON_TROVATO:";
 const MAX_REFORMULATIONS = 3; // tentativi di riformulazione oltre alla domanda originale
 
-function buildSystemPrompt(relevantText) {
+function buildSystemPrompt(relevantText, priorityText = "") {
+  const hasPriority = !!priorityText;
+  const priorityRule = hasPriority
+    ? `
+- ORDINE DI CONSULTAZIONE DELLE FONTI (regola prioritaria su tutte le altre): gli estratti sono divisi in due sezioni, "FONTI PRIORITARIE" e "ALTRE FONTI". Consulta SEMPRE per prime le FONTI PRIORITARIE: se la risposta è presente lì, rispondi basandoti su di esse. Puoi aggiungere dettagli dalle ALTRE FONTI solo se non contraddicono le fonti prioritarie; in caso di discordanza prevale SEMPRE la fonte prioritaria (anche rispetto alla regola sulla data più recente). Solo se la risposta NON si trova nelle FONTI PRIORITARIE, consulta le ALTRE FONTI. Nella riga "Fonte:" cita solo i documenti che hai effettivamente usato.`
+    : "";
+  const extracts = hasPriority
+    ? `FONTI PRIORITARIE (da consultare per prime):
+${priorityText}
+
+ALTRE FONTI (da consultare solo se la risposta non è nelle fonti prioritarie):
+${relevantText || "(nessun estratto pertinente trovato)"}`
+    : relevantText || "(nessun estratto pertinente trovato)";
   return `Sei l'assistente virtuale del Comitato Regionale FIPAV Marche. Rispondi alle domande degli utenti ESCLUSIVAMENTE sulla base degli estratti di documentazione forniti qui sotto (selezionati automaticamente come i più pertinenti alla domanda).
 
 Gli estratti sono organizzati in blocchi preceduti da un'intestazione del tipo:
@@ -149,16 +195,16 @@ Regole:
 - Rispondi in italiano, in modo chiaro e cordiale.
 - IMPORTANTE: dai sempre una risposta completa e ben formata. Se stai elencando categorie, punti o un elenco, riportali per intero, non fermarti a metà.
 - Sii conciso ma completo: rispondi a quanto viene chiesto senza lasciare frasi a metà.
-- PRIORITÀ ALLE FONTI PIÙ RECENTI: se due blocchi riportano informazioni discordanti sullo stesso argomento (es. regole o importi cambiati da una stagione all'altra) e hanno entrambi un campo DATA, usa SEMPRE l'informazione del blocco con la data più recente, e segnalalo brevemente nella risposta (es. "la normativa più recente, aggiornata al ..., prevede che..."). Se la data non è indicata in nessuno dei due blocchi, non puoi dedurre quale sia più recente: in quel caso segnala la discordanza all'utente invece di sceglierne una a caso.
+- PRIORITÀ ALLE FONTI PIÙ RECENTI (valida tra fonti dello stesso livello): se due blocchi riportano informazioni discordanti sullo stesso argomento (es. regole o importi cambiati da una stagione all'altra) e hanno entrambi un campo DATA, usa SEMPRE l'informazione del blocco con la data più recente, e segnalalo brevemente nella risposta (es. "la normativa più recente, aggiornata al ..., prevede che..."). Se la data non è indicata in nessuno dei due blocchi, non puoi dedurre quale sia più recente: in quel caso segnala la discordanza all'utente invece di sceglierne una a caso.
 - CITAZIONE DELLA FONTE (obbligatoria in ogni risposta che non sia NON_TROVATO): alla fine della risposta aggiungi sempre una riga separata che inizia con "Fonte:" seguita dal/i nome/i di DOCUMENTO e, quando la SEZIONE non è "generale", anche dalla SEZIONE, copiati esattamente come compaiono nell'intestazione del blocco da cui hai preso l'informazione. Se il blocco ha un campo LINK, aggiungi il link tra parentesi subito dopo. Se hai usato più blocchi, elenca tutte le fonti separate da un punto e virgola. Esempi:
   Fonte: Documenti Istituzionali (Statuto, Regolamenti, Normativa federale) — Regolamento Affiliazione e Tesseramento 2024 (https://www.federvolley.it/regolamenti-0)
   Fonte: Guida Pratica Campionati Indoor — Guida pratica_Allenatori_2627; Documenti Istituzionali (Statuto, Regolamenti, Normativa federale) — Statuto FIPAV - 2025 - definitivo (https://www.federvolley.it/statuto)
-- NON inventare MAI un link: usa solo quelli che compaiono esplicitamente come LINK nell'intestazione del blocco. Se un blocco non ha LINK, cita solo documento e sezione, senza link.
+- NON inventare MAI un link: usa solo quelli che compaiono esplicitamente come LINK nell'intestazione del blocco. Se un blocco non ha LINK, cita solo documento e sezione, senza link.${priorityRule}
 - Se la risposta NON si trova chiaramente negli estratti forniti, NON inventare nulla e NON scrivere una risposta normale (e in questo caso NON aggiungere la riga "Fonte:"). Rispondi invece ESATTAMENTE in questo formato, senza aggiungere altro testo:
 ${NOT_FOUND_MARKER} <qui riscrivi la domanda in modo più chiaro e dettagliato, usando la terminologia tecnica e ufficiale prevista dalla normativa/regolamenti FIPAV, per tentare una nuova ricerca più precisa>
 
 ESTRATTI DI DOCUMENTAZIONE RILEVANTI:
-${relevantText || "(nessun estratto pertinente trovato)"}`;
+${extracts}`;
 }
 
 async function callClaude(systemPrompt, domanda) {
@@ -200,8 +246,17 @@ async function askClaude(domanda) {
   let currentQuery = domanda;
 
   for (let attempt = 0; attempt <= MAX_REFORMULATIONS; attempt++) {
-    const { text: relevantText } = search(DOCS_INDEX, currentQuery, 120000, 50, linkResolver);
-    const answer = await callClaude(buildSystemPrompt(relevantText), currentQuery);
+    let systemPrompt;
+    if (DOCS_INDEX.hasPriority) {
+      // Prima i documenti prioritari, poi (con il budget rimanente) tutti gli altri.
+      const { text: priorityText } = search(DOCS_INDEX, currentQuery, 50000, 20, linkResolver, true);
+      const { text: otherText } = search(DOCS_INDEX, currentQuery, 70000, 30, linkResolver, false);
+      systemPrompt = buildSystemPrompt(otherText, priorityText);
+    } else {
+      const { text: relevantText } = search(DOCS_INDEX, currentQuery, 120000, 50, linkResolver);
+      systemPrompt = buildSystemPrompt(relevantText);
+    }
+    const answer = await callClaude(systemPrompt, currentQuery);
 
     if (!answer.startsWith(NOT_FOUND_MARKER)) {
       return answer;
