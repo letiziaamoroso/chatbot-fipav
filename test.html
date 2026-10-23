@@ -276,7 +276,6 @@ const API_BASE_URL =
 
 let sessionToken = null;
 let isRegistered = false;
-let needsEmail = false; // true se la società non ha ancora una mail salvata
 
 const root = document.getElementById("root");
 
@@ -396,7 +395,6 @@ function renderPasswordStep() {
         );
 
       sessionToken = data.token;
-      needsEmail = !!data.needsEmail;
 
       renderInstructionsStep();
 
@@ -820,17 +818,6 @@ function renderRegisterStep() {
 
     </select>
 
-    ${
-      needsEmail
-        ? `
-    <input
-      type="email"
-      id="email-input"
-      placeholder="Mail società (una sola volta)"
-    />
-    `
-        : ""
-    }
 
     <div
       class="error"
@@ -878,16 +865,6 @@ function renderRegisterStep() {
             )
             .value;
 
-        const emailInput =
-          document.getElementById(
-            "email-input"
-          );
-
-        const email =
-          emailInput
-            ? emailInput.value.trim()
-            : "";
-
         const errEl =
           document.getElementById(
             "register-error"
@@ -913,18 +890,6 @@ function renderRegisterStep() {
 
         }
 
-        if (needsEmail && !email) {
-
-          errEl.textContent =
-            "Inserisci la mail della società.";
-
-          errEl.style.display =
-            "block";
-
-          return;
-
-        }
-
 
         try {
 
@@ -933,10 +898,6 @@ function renderRegisterStep() {
             cognome,
             qualifica
           };
-
-          if (needsEmail) {
-            payload.email = email;
-          }
 
           await api(
             "/api/register",
