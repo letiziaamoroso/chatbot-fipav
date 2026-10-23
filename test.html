@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -253,6 +252,15 @@
     color:#7A7264;
     margin-top:2px;
   }
+.societa-banner {
+  display: none;
+  text-align: center;
+  font-weight: 700;
+  font-size: 18px;
+  color: #14305c;
+  margin: 12px auto 0;
+  max-width: 650px;
+}
 </style>
 
 
@@ -263,6 +271,8 @@
     onerror="this.style.display='none'"
   />
 </div>
+
+<div class="societa-banner" id="societa-banner"></div>
 
 <div class="card" id="root"></div>
 
@@ -395,6 +405,12 @@ function renderPasswordStep() {
         );
 
       sessionToken = data.token;
+
+      const banner = document.getElementById("societa-banner");
+      if (banner && data.societa) {
+        banner.textContent = data.societa;
+        banner.style.display = "block";
+      }
 
       renderInstructionsStep();
 
@@ -1250,4 +1266,3 @@ renderPasswordStep();
 
 </body>
 </html>
-```
