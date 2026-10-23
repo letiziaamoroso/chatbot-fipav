@@ -181,7 +181,7 @@
       <img class="fpv-logo" src="${CONFIG.LOGO_URL}" alt="${CONFIG.BOT_NAME}" onerror="this.style.display='none'" />
       <div>
         <div class="fpv-header-title">${CONFIG.BOT_NAME}</div>
-        <div class="fpv-header-sub">Comitato Regionale</div>
+        <div class="fpv-header-sub" id="fpv-header-sub">Comitato Regionale</div>
       </div>
       <button class="fpv-close" aria-label="Chiudi">&times;</button>
     </div>
@@ -266,6 +266,7 @@
       try {
         const data = await api("/api/login", { method: "POST", body: JSON.stringify({ password }) });
         saveSession({ token: data.token });
+        setSocieta(data.societa);
         showInstructionsStep(data.token);
       } catch (err) {
         errEl.textContent = err.message;
@@ -529,12 +530,21 @@ function showInstructionsStep(token) {
   sendBtn.addEventListener("click", sendQuestion);
   input.addEventListener("keydown", (e) => e.key === "Enter" && sendQuestion());
 
+  // Mostra il nome della società nell'intestazione, dopo l'inserimento della password
+  function setSocieta(nome) {
+    const sub = panel.querySelector("#fpv-header-sub");
+    if (!sub) return;
+    sub.textContent = nome ? nome : "Comitato Regionale";
+    sub.style.fontWeight = nome ? "600" : "";
+  }
+
   // ---------- Avvio ----------
   function initFlow() {
     body.dataset.init = "1";
     footer.style.display = "none";
     const session = getSession();
     if (session && session.token && session.registered) {
+      api("/api/me").then((d) => setSocieta(d.societa)).catch(() => {});
       startChat();
     } else {
       showPasswordStep();
