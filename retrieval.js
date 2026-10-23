@@ -141,7 +141,10 @@ function extractDateHint(label) {
 function buildIndex(documents) {
   let chunks = [];
   for (const doc of documents) {
-    chunks = chunks.concat(chunkText(doc.content, doc.name));
+    // priority = documento "prioritario": viene consultato per primo (vedi server.js)
+    chunks = chunks.concat(
+      chunkText(doc.content, doc.name).map((c) => ({ ...c, priority: !!doc.priority }))
+    );
   }
 
   const N = chunks.length;
@@ -153,7 +156,9 @@ function buildIndex(documents) {
 
   const avgLen = chunks.reduce((s, c) => s + c.tokens.length, 0) / (N || 1);
 
-  return { chunks, df, N, avgLen };
+  const hasPriority = chunks.some((c) => c.priority);
+
+  return { chunks, df, N, avgLen, hasPriority };
 }
 
 // Cerca i chunk più pertinenti a una domanda (algoritmo BM25) fino a un
@@ -164,7 +169,10 @@ function buildIndex(documents) {
 // linkResolver(source, section) è una funzione opzionale che, se fornita,
 // restituisce il link ufficiale di quella fonte (o null/undefined se non
 // trovato): viene aggiunto all'intestazione del blocco come "LINK: ...".
-function search(index, query, maxChars = 90000, topK = 40, linkResolver = null) {
+//
+// priorityFilter: null = tutti i documenti; true = solo i documenti prioritari;
+// false = solo i documenti NON prioritari.
+function search(index, query, maxChars = 90000, topK = 40, linkResolver = null, priorityFilter = null) {
   const { chunks, df, N, avgLen } = index;
   if (N === 0) return { text: "", sources: [] };
 
@@ -174,7 +182,10 @@ function search(index, query, maxChars = 90000, topK = 40, linkResolver = null) 
   const k1 = 1.5;
   const b = 0.75;
 
-  const scored = chunks.map((chunk) => {
+  const candidates =
+    priorityFilter === null ? chunks : chunks.filter((c) => !!c.priority === priorityFilter);
+
+  const scored = candidates.map((chunk) => {
     const tf = new Map();
     for (const t of chunk.tokens) tf.set(t, (tf.get(t) || 0) + 1);
     const len = chunk.tokens.length || 1;
