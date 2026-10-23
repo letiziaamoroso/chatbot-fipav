@@ -170,7 +170,8 @@ async function reloadDocs() {
 }
 
 const NOT_FOUND_MARKER = "NON_TROVATO:";
-const MAX_REFORMULATIONS = 3; // tentativi di riformulazione oltre alla domanda originale
+const MAX_REFORMULATIONS = 3; // quante volte si chiede all'utente di riformulare prima di indicare la mail
+const FALLBACK_EMAIL = "labussoladelvolley@gmail.com";
 
 function buildSystemPrompt(relevantText, priorityText = "") {
   const hasPriority = !!priorityText;
@@ -201,7 +202,7 @@ Regole:
   Fonte: Guida Pratica Campionati Indoor — Guida pratica_Allenatori_2627; Documenti Istituzionali (Statuto, Regolamenti, Normativa federale) — Statuto FIPAV - 2025 - definitivo (https://www.federvolley.it/statuto)
 - NON inventare MAI un link: usa solo quelli che compaiono esplicitamente come LINK nell'intestazione del blocco. Se un blocco non ha LINK, cita solo documento e sezione, senza link.${priorityRule}
 - Se la risposta NON si trova chiaramente negli estratti forniti, NON inventare nulla e NON scrivere una risposta normale (e in questo caso NON aggiungere la riga "Fonte:"). Rispondi invece ESATTAMENTE in questo formato, senza aggiungere altro testo:
-${NOT_FOUND_MARKER} <qui riscrivi la domanda in modo più chiaro e dettagliato, usando la terminologia tecnica e ufficiale prevista dalla normativa/regolamenti FIPAV, per tentare una nuova ricerca più precisa>
+${NOT_FOUND_MARKER} <qui riscrivi la domanda in modo più chiaro e dettagliato, usando la terminologia tecnica e ufficiale prevista dalla normativa/regolamenti FIPAV, come suggerimento da proporre all'utente>
 
 ESTRATTI DI DOCUMENTAZIONE RILEVANTI:
 ${extracts}`;
@@ -234,40 +235,49 @@ async function callClaude(systemPrompt, domanda) {
 }
 
 // ---------------------------------------------------------------------------
-// Chiamata a Claude. Se la prima ricerca non trova la risposta, il sistema
-// prova a riformulare la domanda con terminologia tecnica/normativa fino a
-// MAX_REFORMULATIONS volte, prima di indirizzare l'utente via email.
+// Chiamata a Claude. Se non trova la risposta, il chatbot chiede all'utente di
+// riformulare con termini più tecnici (fino a MAX_REFORMULATIONS volte); dopo
+// di che indica la mail FALLBACK_EMAIL.
 // ---------------------------------------------------------------------------
 async function askClaude(domanda) {
   if (!ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY non configurata sul server.");
   }
 
-  let currentQuery = domanda;
-
-  for (let attempt = 0; attempt <= MAX_REFORMULATIONS; attempt++) {
-    let systemPrompt;
-    if (DOCS_INDEX.hasPriority) {
-      // Prima i documenti prioritari, poi (con il budget rimanente) tutti gli altri.
-      const { text: priorityText } = search(DOCS_INDEX, currentQuery, 50000, 20, linkResolver, true);
-      const { text: otherText } = search(DOCS_INDEX, currentQuery, 70000, 30, linkResolver, false);
-      systemPrompt = buildSystemPrompt(otherText, priorityText);
-    } else {
-      const { text: relevantText } = search(DOCS_INDEX, currentQuery, 120000, 50, linkResolver);
-      systemPrompt = buildSystemPrompt(relevantText);
-    }
-    const answer = await callClaude(systemPrompt, currentQuery);
-
-    if (!answer.startsWith(NOT_FOUND_MARKER)) {
-      return answer;
-    }
-
-    const reformulated = answer.slice(NOT_FOUND_MARKER.length).trim();
-    if (!reformulated) break; // il modello non ha proposto una riformulazione: inutile continuare
-    currentQuery = reformulated;
+  let systemPrompt;
+  if (DOCS_INDEX.hasPriority) {
+    // Prima i documenti prioritari, poi (con il budget rimanente) tutti gli altri.
+    const { text: priorityText } = search(DOCS_INDEX, domanda, 50000, 20, linkResolver, true);
+    const { text: otherText } = search(DOCS_INDEX, domanda, 70000, 30, linkResolver, false);
+    systemPrompt = buildSystemPrompt(otherText, priorityText);
+  } else {
+    const { text: relevantText } = search(DOCS_INDEX, domanda, 120000, 50, linkResolver);
+    systemPrompt = buildSystemPrompt(relevantText);
   }
+  const answer = await callClaude(systemPrompt, domanda);
 
-  return `Non sono riuscito a trovare questa informazione nella documentazione disponibile, nemmeno dopo aver riformulato la domanda più volte con terminologia tecnica. Ti invito a scrivere a ${CONTACT_EMAIL} per ricevere assistenza dal Comitato.`;
+  if (!answer.startsWith(NOT_FOUND_MARKER)) {
+    return { found: true, text: answer };
+  }
+  // Il modello propone una versione più tecnica della domanda: la mostriamo
+  // all'utente come suggerimento per riformularla.
+  return { found: false, suggestion: answer.slice(NOT_FOUND_MARKER.length).trim() };
+}
+
+// Conteggio dei tentativi falliti consecutivi per ogni sessione (in memoria:
+// si azzera se il server si riavvia, senza conseguenze). Si azzera anche
+// appena il chatbot trova una risposta.
+const failedAttempts = new Map();
+
+function notFoundMessage(token, suggestion) {
+  const n = (failedAttempts.get(token) || 0) + 1;
+  failedAttempts.set(token, n);
+  if (n > MAX_REFORMULATIONS) {
+    failedAttempts.delete(token);
+    return `Non sono riuscito a trovare questa informazione nella documentazione disponibile, nemmeno dopo i tuoi tentativi di riformulazione. Puoi formulare la tua richiesta scrivendo a ${FALLBACK_EMAIL}: il Comitato ti risponderà.`;
+  }
+  const esempio = suggestion ? `\n\nPer esempio: «${suggestion}»` : "";
+  return `Non ho trovato questa informazione nella documentazione. Prova a riformulare la domanda usando termini più tecnici (ad esempio la terminologia ufficiale usata nei regolamenti e nelle circolari FIPAV).${esempio}\n\n(Tentativo di riformulazione ${n} di ${MAX_REFORMULATIONS})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -310,26 +320,18 @@ app.post("/api/login", (req, res) => {
   const token = crypto.randomBytes(24).toString("hex");
   createSession(token, user.id);
 
-  // La mail società è un dato unico per società (come il codice società): la
-  // segnaliamo al widget solo se manca ancora, così chiede di inserirla una
-  // volta sola e non ad ogni accesso.
-  res.json({ token, needsEmail: !user.email });
+  // La mail società la inserisce solo l'amministratore dal pannello di controllo.
+  res.json({ token });
 });
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // 2. Registrazione nome/cognome/qualifica (ad ogni accesso: il codice è condiviso)
-// + eventualmente la mail società, richiesta solo se non è già stata inserita.
+
 app.post("/api/register", requireSession, (req, res) => {
-  const { nome, cognome, qualifica, email } = req.body;
+  const { nome, cognome, qualifica } = req.body;
   if (!nome || !cognome || !qualifica) {
     return res.status(400).json({ error: "Nome, cognome e qualifica sono obbligatori." });
-  }
-  if (!req.user.email) {
-    if (!email || !email.trim() || !EMAIL_RE.test(email.trim())) {
-      return res.status(400).json({ error: "Inserisci una mail società valida." });
-    }
-    setUserEmail(req.user.id, email.trim());
   }
   setSessionIdentity(req.sessionToken, nome.trim(), cognome.trim(), qualifica.trim());
   res.json({ ok: true });
@@ -362,7 +364,14 @@ app.post("/api/chat", requireSession, async (req, res) => {
   }
 
   try {
-    const risposta = await askClaude(domanda.trim());
+    const result = await askClaude(domanda.trim());
+    let risposta;
+    if (result.found) {
+      failedAttempts.delete(req.sessionToken);
+      risposta = result.text;
+    } else {
+      risposta = notFoundMessage(req.sessionToken, result.suggestion);
+    }
     incrementQuestionCount(user.id);
     addLog(user.id, req.session.nome, req.session.cognome, req.session.qualifica, domanda.trim(), risposta);
     const newCount = user.question_count + 1;
@@ -409,6 +418,71 @@ app.post("/api/admin/users", requireAdmin, (req, res) => {
   } catch (err) {
     res.status(400).json({ error: "Password già esistente o dati non validi." });
   }
+});
+
+// Importazione massiva di società (da file Excel letto nel pannello admin).
+// Non modifica né cancella mai società esistenti: le righe con codice società
+// o password già presenti vengono saltate e segnalate.
+function generatePassword(codice, taken) {
+  const base = String(codice || "soc").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "soc";
+  const alphabet = "abcdefghjkmnpqrstuvwxyz23456789"; // senza caratteri ambigui (0/o, 1/l/i)
+  for (let i = 0; i < 50; i++) {
+    let suffix = "";
+    for (let j = 0; j < 4; j++) suffix += alphabet[crypto.randomInt(alphabet.length)];
+    const pw = `${base}-${suffix}`;
+    if (!taken.has(pw.toLowerCase())) return pw;
+  }
+  return `${base}-${crypto.randomBytes(4).toString("hex")}`;
+}
+
+app.post("/api/admin/users/import", requireAdmin, (req, res) => {
+  const rows = req.body.rows;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return res.status(400).json({ error: "Nessuna riga da importare." });
+  }
+  if (rows.length > 1000) {
+    return res.status(400).json({ error: "Troppe righe in un solo file (massimo 1000)." });
+  }
+  const existing = listUsers();
+  const takenPasswords = new Set(existing.map((u) => String(u.password).toLowerCase()));
+  const takenCodes = new Set(
+    existing.map((u) => String(u.codice_societa || "").trim().toLowerCase()).filter(Boolean)
+  );
+  const created = [];
+  const skipped = [];
+  rows.forEach((r, i) => {
+    const riga = i + 2; // riga nel foglio Excel (la 1 è l'intestazione)
+    const societa = String(r.societa || "").trim();
+    const codice = String(r.codiceSocieta || "").trim();
+    const email = String(r.email || "").trim();
+    let password = String(r.password || "").trim();
+    if (!societa || !codice) {
+      skipped.push({ riga, societa, motivo: "nome o codice società mancante" });
+      return;
+    }
+    if (email && !EMAIL_RE.test(email)) {
+      skipped.push({ riga, societa, motivo: "mail non valida" });
+      return;
+    }
+    if (takenCodes.has(codice.toLowerCase())) {
+      skipped.push({ riga, societa, motivo: "codice società già presente" });
+      return;
+    }
+    if (password && takenPasswords.has(password.toLowerCase())) {
+      skipped.push({ riga, societa, motivo: "password già usata da un'altra società" });
+      return;
+    }
+    if (!password) password = generatePassword(codice, takenPasswords);
+    try {
+      addUser(password, societa, codice, email || null);
+      takenPasswords.add(password.toLowerCase());
+      takenCodes.add(codice.toLowerCase());
+      created.push({ societa, codiceSocieta: codice, email, password });
+    } catch (err) {
+      skipped.push({ riga, societa, motivo: "errore nel salvataggio" });
+    }
+  });
+  res.json({ created, skipped });
 });
 
 app.delete("/api/admin/users/:id", requireAdmin, (req, res) => {
