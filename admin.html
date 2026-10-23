@@ -293,10 +293,27 @@
       <p style="font-size:12px; color:var(--muted); margin-top:10px;">
         La password può essere condivisa da più persone della stessa società (presidente, dirigenti,
         allenatori, ecc.): ognuno indicherà nome, cognome e qualifica ad ogni accesso, e lo vedrai
-        nella cronologia delle domande. Nome e codice società sono obbligatori; se lasci vuota la mail,
-        verrà richiesta direttamente alla società al primo accesso alla chat.
+        nella cronologia delle domande. Nome e codice società sono obbligatori; la mail società la
+        inserisci tu da qui (anche in un secondo momento con "Modifica mail"): gli utenti non la devono inserire.
       </p>
       <div id="add-user-msg"></div>
+
+    <div id="tab-add-import" style="margin-top:28px; padding-top:20px; border-top:1px solid var(--border, #ddd);">
+      <h2>Importa molte società da Excel</h2>
+      <p style="font-size:13px; color:var(--muted);">
+        Prepara un file Excel con una riga per società e queste colonne nella prima riga:
+        <b>Nome società</b>, <b>Codice società</b>, <b>Mail</b>, <b>Password</b>.
+        La colonna Password è facoltativa: se la lasci vuota, la password viene creata automaticamente.
+        Le società già presenti (stesso codice) vengono saltate e non vengono mai modificate.
+      </p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:10px 0;">
+        <button class="btn" onclick="downloadImportTemplate()">Scarica modello Excel</button>
+        <input type="file" id="import-file" accept=".xlsx,.xls,.csv" onchange="readImportFile(this)" />
+      </div>
+      <div id="import-preview"></div>
+      <button class="btn hidden" id="import-confirm" onclick="confirmImport()">Importa queste società</button>
+      <div id="import-msg" style="margin-top:10px;"></div>
+    </div>
     </div>
   </main>
 </div>
@@ -808,6 +825,107 @@
       msgEl.style.color = "var(--danger)";
       msgEl.textContent = err.message;
     }
+  }
+
+
+  // ---------- Importazione società da Excel ----------
+  let importRows = [];
+  function normHeader(h) {
+    return String(h || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]/g, "");
+  }
+  function downloadImportTemplate() {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["Nome società", "Codice società", "Mail", "Password"],
+      ["Pallavolo Ancona", "AN001", "segreteria@pallavoloancona.it", ""],
+    ]);
+    ws["!cols"] = [{ wch: 32 }, { wch: 16 }, { wch: 34 }, { wch: 18 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Società");
+    XLSX.writeFile(wb, "modello_import_societa.xlsx");
+  }
+  function readImportFile(input) {
+    const file = input.files[0];
+    const msgEl = document.getElementById("import-msg");
+    const prev = document.getElementById("import-preview");
+    const btn = document.getElementById("import-confirm");
+    msgEl.textContent = "";
+    prev.innerHTML = "";
+    btn.classList.add("hidden");
+    importRows = [];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: "array" });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
+        importRows = raw
+          .map((r) => {
+            const o = { societa: "", codiceSocieta: "", email: "", password: "" };
+            Object.keys(r).forEach((k) => {
+              const n = normHeader(k);
+              const v = String(r[k]).trim();
+              if (n.includes("codice")) o.codiceSocieta = v;
+              else if (n.includes("mail")) o.email = v;
+              else if (n.includes("password")) o.password = v;
+              else if (n.includes("societa") || n.includes("nome")) o.societa = v;
+            });
+            return o;
+          })
+          .filter((o) => o.societa || o.codiceSocieta || o.email || o.password);
+        if (importRows.length === 0) {
+          msgEl.style.color = "var(--danger)";
+          msgEl.textContent = "Nel file non ho trovato righe. Controlla che la prima riga contenga le intestazioni (usa il modello).";
+          return;
+        }
+        const withPw = importRows.filter((r) => r.password).length;
+        prev.innerHTML = `<p style="font-size:13px;">Trovate <b>${importRows.length}</b> società nel file
+          (${withPw} con password indicata, ${importRows.length - withPw} con password da creare automaticamente).
+          Prime righe: ${importRows.slice(0, 3).map((r) => escapeHtml(r.societa + " (" + r.codiceSocieta + ")")).join(", ")}…</p>`;
+        btn.classList.remove("hidden");
+      } catch (err) {
+        msgEl.style.color = "var(--danger)";
+        msgEl.textContent = "Impossibile leggere il file: " + err.message;
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  async function confirmImport() {
+    const msgEl = document.getElementById("import-msg");
+    const btn = document.getElementById("import-confirm");
+    btn.disabled = true;
+    msgEl.style.color = "var(--muted)";
+    msgEl.textContent = "Importazione in corso...";
+    try {
+      const res = await api("/api/admin/users/import", { method: "POST", body: JSON.stringify({ rows: importRows }) });
+      let html = `<b style="color:#22682B;">Importate ${res.created.length} società.</b>`;
+      if (res.skipped.length) {
+        html += `<br><span style="color:var(--danger);">Saltate ${res.skipped.length}:</span><ul style="font-size:13px;">` +
+          res.skipped.map((s) => `<li>riga ${s.riga} ${escapeHtml(s.societa || "")}: ${escapeHtml(s.motivo)}</li>`).join("") + "</ul>";
+      }
+      if (res.created.length) {
+        const ws = XLSX.utils.aoa_to_sheet([
+          ["Nome società", "Codice società", "Mail", "Password"],
+          ...res.created.map((c) => [c.societa, c.codiceSocieta, c.email, c.password]),
+        ]);
+        ws["!cols"] = [{ wch: 32 }, { wch: 16 }, { wch: 34 }, { wch: 18 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Credenziali");
+        XLSX.writeFile(wb, "credenziali_societa_importate.xlsx");
+        html += "<br>Ho scaricato un file Excel con le password: conservalo, serve per comunicarle alle società.";
+      }
+      msgEl.style.color = "inherit";
+      msgEl.innerHTML = html;
+      document.getElementById("import-file").value = "";
+      document.getElementById("import-preview").innerHTML = "";
+      btn.classList.add("hidden");
+      importRows = [];
+      loadAll();
+    } catch (err) {
+      msgEl.style.color = "var(--danger)";
+      msgEl.textContent = err.message;
+    }
+    btn.disabled = false;
   }
 
   // popola il filtro "Categoria" nella tab Domande con l'elenco categorie disponibili
