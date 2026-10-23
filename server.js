@@ -321,7 +321,7 @@ app.post("/api/login", (req, res) => {
   createSession(token, user.id);
 
   // La mail società la inserisce solo l'amministratore dal pannello di controllo.
-  res.json({ token });
+  res.json({ token, societa: user.societa || null });
 });
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -335,6 +335,11 @@ app.post("/api/register", requireSession, (req, res) => {
   }
   setSessionIdentity(req.sessionToken, nome.trim(), cognome.trim(), qualifica.trim());
   res.json({ ok: true });
+});
+
+// Nome della società collegata alla sessione (mostrato nel widget)
+app.get("/api/me", requireSession, (req, res) => {
+  res.json({ societa: req.user.societa || null });
 });
 
 // 3. Domande già fatte dalla propria società (per evitare ripetizioni)
