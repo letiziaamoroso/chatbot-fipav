@@ -321,7 +321,7 @@
 <script>
   // ==========================================================
   const API_BASE_URL = "https://chatbot-fipav-production.up.railway.app";
-  let MAX_QUESTIONS = 100; // valore di riserva, viene sostituito da quello reale del server
+  let MAX_QUESTIONS = 20; // valore di riserva, viene sostituito da quello reale del server
 
   const CATEGORIE = [
     "Tesseramento e Affiliazione",
@@ -378,7 +378,7 @@
         MAX_QUESTIONS = data.maxQuestionsPerMonth;
       }
     } catch (err) {
-      // se fallisce, resta il valore di riserva (100)
+      // se fallisce, resta il valore di riserva (20)
     }
   }
 
@@ -471,7 +471,7 @@
   function statusKey(u) {
     if (u.blocked && u.blocked_reason === "limite") return "bloccato-limite";
     if (u.blocked) return "bloccato-manuale";
-    if (u.question_count >= MAX_QUESTIONS * 0.9) return "vicino";
+    if (u.question_count >= (u.limit || MAX_QUESTIONS) * 0.9) return "vicino";
     return "attivo";
   }
 
@@ -531,8 +531,7 @@
     const blocked = users.filter((u) => u.blocked);
     const blockedByLimit = blocked.filter((u) => u.blocked_reason === "limite").length;
     const blockedManually = blocked.filter((u) => u.blocked_reason !== "limite").length;
-    const nearLimit = users.filter((u) => !u.blocked && u.question_count >= MAX_QUESTIONS * 0.9).length;
-    const nearLimitThreshold = Math.ceil(MAX_QUESTIONS * 0.9);
+    const nearLimit = users.filter((u) => !u.blocked && u.question_count >= (u.limit || MAX_QUESTIONS) * 0.9).length;
     document.getElementById("stat-grid").innerHTML = `
       <div class="stat-box">
         <div class="num">${users.length}</div>
@@ -545,12 +544,12 @@
       <div class="stat-box">
         <div class="num">${nearLimit}</div>
         <div class="label">Vicine al limite</div>
-        <div class="hint">Non ancora bloccate, ma con ${nearLimitThreshold}+ domande su ${MAX_QUESTIONS}: rischiano di bloccarsi a breve</div>
+        <div class="hint">Non ancora bloccate, ma al 90% o più del proprio limite mensile: rischiano di bloccarsi a breve</div>
       </div>
       <div class="stat-box">
         <div class="num">${blocked.length}</div>
         <div class="label">Società bloccate</div>
-        <div class="hint">${blockedByLimit} per limite di ${MAX_QUESTIONS} domande raggiunto, ${blockedManually} bloccate manualmente da te</div>
+        <div class="hint">${blockedByLimit} per limite mensile raggiunto, ${blockedManually} bloccate manualmente da te</div>
       </div>
     `;
   }
@@ -580,7 +579,7 @@
           statusPill = '<span class="pill blocked">bloccato — limite raggiunto</span>';
         } else if (u.blocked) {
           statusPill = '<span class="pill blocked">bloccato manualmente</span>';
-        } else if (u.question_count >= MAX_QUESTIONS * 0.9) {
+        } else if (u.question_count >= (u.limit || MAX_QUESTIONS) * 0.9) {
           statusPill = '<span class="pill warn">vicino al limite</span>';
         }
         return `
@@ -590,7 +589,7 @@
             <td>${u.codice_societa ? escapeHtml(u.codice_societa) : "<em>—</em>"}</td>
             <td>${u.email ? escapeHtml(u.email) : "<em>—</em>"}</td>
             <td><code>${escapeHtml(u.password)}</code></td>
-            <td>${u.question_count} / ${MAX_QUESTIONS}</td>
+            <td>${u.question_count} / ${u.limit || MAX_QUESTIONS}</td>
             <td>${statusPill}</td>
             <td>${u.last_login ? escapeHtml(u.last_login) : "mai"}</td>
             <td class="row-actions">
