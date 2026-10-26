@@ -39,7 +39,13 @@ const PORT = process.env.PORT || 3000;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "cambia-questa-password";
-const MAX_QUESTIONS_PER_MONTH = parseInt(process.env.MAX_QUESTIONS_PER_MONTH || "100", 10);
+// Limite mensile di domande: 200 per la società "MARCHE", 20 per tutte le altre.
+const LIMIT_MARCHE = 200;
+const LIMIT_DEFAULT = 20;
+function limitFor(user) {
+  const nome = String((user && user.societa) || "").trim().toLowerCase();
+  return nome === "marche" ? LIMIT_MARCHE : LIMIT_DEFAULT;
+}
 const CONTACT_EMAIL = "marche@federvolley.it";
 const DOCS_DIR = path.join(__dirname, "docs");
 
@@ -361,10 +367,11 @@ app.post("/api/chat", requireSession, async (req, res) => {
   if (user.blocked) {
     return res.status(403).json({ error: `Questo accesso è stato bloccato. Contatta il Comitato scrivendo a ${CONTACT_EMAIL}.` });
   }
-  if (user.question_count >= MAX_QUESTIONS_PER_MONTH) {
+  const limit = limitFor(user);
+  if (user.question_count >= limit) {
     setBlocked(user.id, true, "limite");
     return res.status(429).json({
-      error: `Hai raggiunto il limite di ${MAX_QUESTIONS_PER_MONTH} domande e il tuo accesso è stato bloccato automaticamente. Contatta il Comitato scrivendo a ${CONTACT_EMAIL} per sbloccarlo.`,
+      error: `Hai raggiunto il limite di ${limit} domande e il tuo accesso è stato bloccato automaticamente. Contatta il Comitato scrivendo a ${CONTACT_EMAIL} per sbloccarlo.`,
     });
   }
 
@@ -380,10 +387,10 @@ app.post("/api/chat", requireSession, async (req, res) => {
     incrementQuestionCount(user.id);
     addLog(user.id, req.session.nome, req.session.cognome, req.session.qualifica, domanda.trim(), risposta);
     const newCount = user.question_count + 1;
-    if (newCount >= MAX_QUESTIONS_PER_MONTH) {
+    if (newCount >= limit) {
       setBlocked(user.id, true, "limite");
     }
-    const remaining = Math.max(0, MAX_QUESTIONS_PER_MONTH - newCount);
+    const remaining = Math.max(0, limit - newCount);
     res.json({ risposta, remaining });
   } catch (err) {
     console.error(err);
@@ -398,7 +405,7 @@ app.post("/api/chat", requireSession, async (req, res) => {
 app.post("/api/admin/verify", requireAdmin, (req, res) => res.json({ ok: true }));
 
 app.get("/api/admin/users", requireAdmin, (req, res) => {
-  res.json(listUsers());
+  res.json(listUsers().map((u) => ({ ...u, limit: limitFor(u) })));
 });
 
 app.get("/api/admin/logs", requireAdmin, (req, res) => {
@@ -562,7 +569,7 @@ app.post("/api/admin/faqs", requireAdmin, (req, res) => {
 });
 
 app.get("/api/health", (req, res) =>
-  res.json({ ok: true, totalDocChars: TOTAL_DOC_CHARS, chunks: DOCS_INDEX.chunks.length, maxQuestionsPerMonth: MAX_QUESTIONS_PER_MONTH })
+  res.json({ ok: true, totalDocChars: TOTAL_DOC_CHARS, chunks: DOCS_INDEX.chunks.length, maxQuestionsPerMonth: LIMIT_DEFAULT, limitMarche: LIMIT_MARCHE })
 );
 
 async function start() {
