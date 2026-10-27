@@ -131,6 +131,8 @@
       <div class="sub">Società, accessi e domande</div>
     </div>
     <div style="display:flex; align-items:center; gap:10px;">
+      <button class="btn" onclick="downloadBackupExcel()" id="backup-xlsx-btn">Backup Excel</button>
+      <button class="btn" onclick="downloadBackupDb()" id="backup-db-btn">Backup completo (.db)</button>
       <button class="btn" onclick="reloadDocs()" id="reload-docs-btn">Ricarica documentazione</button>
       <button class="btn" onclick="logout()">Esci</button>
     </div>
@@ -826,6 +828,78 @@
     }
   }
 
+
+
+  // ---------- Backup dei dati ----------
+  function backupStamp() {
+    return new Date().toISOString().slice(0, 10);
+  }
+  async function downloadBackupExcel() {
+    const btn = document.getElementById("backup-xlsx-btn");
+    const old = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Preparo...";
+    try {
+      const data = await api("/api/admin/backup/data");
+      const societa = data.users.map((u) => ({
+        ID: u.id,
+        "Nome società": u.societa || "",
+        "Codice società": u.codice_societa || "",
+        "Mail società": u.email || "",
+        Password: u.password,
+        "Domande questo mese": u.question_count,
+        Bloccato: u.blocked ? "sì" : "no",
+        "Ultimo accesso": u.last_login || "",
+        Creata: u.created_at || "",
+      }));
+      const domande = data.logs.map((l) => ({
+        ID: l.id,
+        Data: l.timestamp,
+        Società: l.societa || "",
+        "Codice società": l.codice_societa || "",
+        Nome: l.nome || "",
+        Cognome: l.cognome || "",
+        Qualifica: l.qualifica || "",
+        Categoria: l.categoria || "",
+        FAQ: l.faq ? "sì" : "no",
+        Domanda: l.domanda,
+        Risposta: l.risposta || "",
+      }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(societa), "Società");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(domande), "Domande e risposte");
+      XLSX.writeFile(wb, `backup_chatbot_${backupStamp()}.xlsx`);
+    } catch (err) {
+      alert("Backup non riuscito: " + err.message);
+    }
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+  async function downloadBackupDb() {
+    const btn = document.getElementById("backup-db-btn");
+    const old = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Preparo...";
+    try {
+      const resp = await fetch(API_BASE_URL + "/api/admin/backup/db", {
+        headers: { "x-admin-password": adminPassword },
+      });
+      if (!resp.ok) throw new Error("Errore " + resp.status);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `backup_chatbot_${backupStamp()}.db`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Backup non riuscito: " + err.message);
+    }
+    btn.disabled = false;
+    btn.textContent = old;
+  }
 
   // ---------- Importazione società da Excel ----------
   let importRows = [];
