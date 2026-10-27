@@ -28,6 +28,7 @@ const {
   setLogFaq,
   setLogCategoria,
   listFaqs,
+  db,
   addManualFaq,
 } = require("./db");
 
@@ -495,6 +496,35 @@ app.post("/api/admin/users/import", requireAdmin, (req, res) => {
     }
   });
   res.json({ created, skipped });
+});
+
+// ---------------------------------------------------------------------------
+// BACKUP (solo amministratore)
+// ---------------------------------------------------------------------------
+
+// Tutti i dati in formato leggibile (il pannello li trasforma in un file Excel).
+app.get("/api/admin/backup/data", requireAdmin, (req, res) => {
+  const users = db.prepare("SELECT * FROM users WHERE is_system = 0 ORDER BY id").all();
+  const logs = db
+    .prepare(`SELECT logs.id, logs.user_id, users.societa, users.codice_societa, logs.nome, logs.cognome,
+                     logs.qualifica, logs.domanda, logs.risposta, logs.faq, logs.categoria, logs.timestamp
+              FROM logs LEFT JOIN users ON logs.user_id = users.id ORDER BY logs.id`)
+    .all();
+  res.json({ users, logs });
+});
+
+// Copia completa del database (file .db), ripristinabile così com'è.
+app.get("/api/admin/backup/db", requireAdmin, async (req, res) => {
+  const tmp = path.join(require("os").tmpdir(), `backup-${Date.now()}.db`);
+  try {
+    await db.backup(tmp);
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.download(tmp, `backup_chatbot_${stamp}.db`, () => fs.unlink(tmp, () => {}));
+  } catch (err) {
+    console.error("Errore backup:", err);
+    fs.unlink(tmp, () => {});
+    res.status(500).json({ error: "Impossibile creare il backup." });
+  }
 });
 
 app.delete("/api/admin/users/:id", requireAdmin, (req, res) => {
