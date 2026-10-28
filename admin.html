@@ -51,9 +51,10 @@
   .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
   .card h2 { font-size: 15px; margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
-  /* la tabella scorre dentro il suo riquadro: la barra orizzontale resta sempre visibile in basso */
-  .table-scroll { overflow: auto; max-height: 72vh; -webkit-overflow-scrolling: touch; }
-  .table-scroll thead tr:first-child th { position: sticky; top: 0; background: #fff; z-index: 2; }
+  /* barra di scorrimento orizzontale duplicata SOPRA la tabella: sempre raggiungibile senza scendere in fondo */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .top-scroll { overflow-x: auto; overflow-y: hidden; height: 16px; margin-bottom: 4px; }
+  .top-scroll > div { height: 1px; }
   table { width: 100%; min-width: 920px; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; }
@@ -1027,6 +1028,41 @@
       opt.value = c;
       opt.textContent = c;
       sel.appendChild(opt);
+    });
+  })();
+
+
+  // Aggiunge sopra ogni tabella una barra di scorrimento orizzontale sincronizzata con quella in basso.
+  (function initTopScrollbars() {
+    document.querySelectorAll(".table-scroll").forEach((box) => {
+      const table = box.querySelector("table");
+      if (!table) return;
+      const top = document.createElement("div");
+      top.className = "top-scroll";
+      const inner = document.createElement("div");
+      top.appendChild(inner);
+      box.parentNode.insertBefore(top, box);
+      const sync = () => {
+        inner.style.width = table.scrollWidth + "px";
+        top.style.display = table.scrollWidth > box.clientWidth + 1 ? "block" : "none";
+      };
+      let lock = false;
+      top.addEventListener("scroll", () => {
+        if (lock) { lock = false; return; }
+        lock = true;
+        box.scrollLeft = top.scrollLeft;
+      });
+      box.addEventListener("scroll", () => {
+        if (lock) { lock = false; return; }
+        lock = true;
+        top.scrollLeft = box.scrollLeft;
+      });
+      if (window.ResizeObserver) {
+        new ResizeObserver(sync).observe(table);
+        new ResizeObserver(sync).observe(box);
+      }
+      window.addEventListener("resize", sync);
+      sync();
     });
   })();
 
