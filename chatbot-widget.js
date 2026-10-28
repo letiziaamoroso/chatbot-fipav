@@ -24,30 +24,6 @@
       "Atleta",
       "Altro",
     ],
-    ISTRUZIONI: [
-  "Servizio di Assistenza Virtuale (chatbot)",
-  "Il servizio mette a disposizione un assistente virtuale (chatbot) progettato per rispondere ai quesiti degli utenti basandosi esclusivamente sulla DOCUMENTAZIONE UFFICIALE DEL COMITATO REGIONALE FIPAV MARCHE.",
-
-  "📌 Modalità di funzionamento e raccomandazioni d'uso",
-
-  "Argomenti già trattati: Prima di porre una nuova domanda al chatbot, si invita a consultare l'elenco delle FAQ - Domande Frequenti disponibili ed aggiornate al seguente link: [xxx Link pagina FAQ - Domande Frequenti]. In questa sezione [in aggiornamento] sono già presenti le risposte ai quesiti e dubbi più comuni.",
-
-  "Documentazione di riferimento: Il chatbot risponde soltanto su argomenti presenti nei testi ufficiali. Per la consultazione integrale o per eventuali verifiche dirette, la documentazione completa è disponibile al seguente link: [xxx Link alla pagina contenente documentazione ufficiale Comitato Reg FIPAV].",
-
-  "Formulazione dei quesiti: Si raccomanda di porre le domande in modo chiaro e dettagliato. È possibile inserire domande successive per affinare le risposte o richiedere ulteriori dettagli.",
-
-  "Valore delle risposte: Le informazioni fornite dall'assistente virtuale hanno carattere informativo. Ogni risposta va pertanto letta, compresa e verificata rispetto ai testi ufficiali presenti sul sito.",
-
-  "Argomenti non presenti: Qualora un'informazione non sia reperibile nella documentazione, il chatbot lo segnalerà e indicherà le vie alternative di contatto con il Comitato (ad esempio e-mail). Le risposte a tali richieste verranno quindi fornite necessariamente secondo tempistiche non immediate e modalità ordinarie.",
-
-  "⚠️ Condizioni di accesso e limiti di utilizzo",
-
-  "Limite di domande per società: In considerazione dei costi procedurali, è consentito un numero massimo di XXX domande complessive per ciascuna società per mese solare. Superato tale limite, l'accesso verrà bloccato automaticamente e potrà essere ripristinato solo su richiesta al COMITATO REGIONALE.",
-
-  "Autenticazione e identificazione: La password di accesso è condivisa tra gli utenti appartenenti alla medesima società. Nella schermata successiva e ad ogni accesso successivo è richiesto l'inserimento di Nome, Cognome e Qualifica del richiedente.",
-
-  "Trattamento dati e riservatezza: I dati identificativi inseriti saranno trattati nel rispetto della normativa sulla privacy al solo fine di gestire e monitorare gli accessi. Si richiede di non inserire dati personali sensibili o informazioni riservate all'interno dei testi delle domande."
-],
   };
   // ==========================================================
 
@@ -289,108 +265,50 @@ function showInstructionsStep(token) {
     </div>
 
     <p style="font-size:13px; line-height:1.55; color:#2A2A2A; margin:0 0 18px;">
-      Il servizio mette a disposizione un assistente virtuale (chatbot)
-      progettato per rispondere ai quesiti degli utenti basandosi
-      <strong>esclusivamente sulla DOCUMENTAZIONE UFFICIALE DEL COMITATO
-      REGIONALE FIPAV MARCHE.</strong>
+      Il servizio mette a disposizione un assistente virtuale (chatbot) progettato per rispondere ai quesiti degli utenti basandosi
+      <strong>esclusivamente sulla DOCUMENTAZIONE UFFICIALE DELLA FEDERAZIONE ITALIANA PALLAVOLO E DEL COMITATO REGIONALE FIPAV MARCHE.</strong>
     </p>
 
-    <div style="
-      background:#EFE9DD;
-      border-radius:10px;
-      padding:12px;
-      margin-bottom:16px;
-    ">
+    <div style="background:#EFE9DD; border-radius:10px; padding:12px; margin-bottom:16px;">
       <div style="font-size:14px; font-weight:700; color:#16305C; margin-bottom:12px;">
         📌 Modalità di funzionamento e raccomandazioni d'uso
       </div>
-
       <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
-        <strong>Argomenti già trattati:</strong>
-        Prima di porre una nuova domanda al chatbot, si invita a consultare
-        l'elenco delle <strong>FAQ - Domande Frequenti</strong> disponibili
-        ed aggiornate al seguente link:
-        <a href="INSERISCI-QUI-LINK-FAQ"
-           target="_blank"
-           style="color:#16305C; font-weight:600;">
-           FAQ - Domande Frequenti
-        </a>.
-        In questa sezione, in aggiornamento, sono già presenti le risposte
-        ai quesiti e dubbi più comuni.
+        <strong>Argomenti già trattati:</strong> Prima di porre una nuova domanda al chatbot, si invita a consultare l'elenco delle <strong>FAQ - Domande e risposte frequenti</strong> disponibili ed aggiornate al seguente link: <a href="https://marche.federvolley.it/faq-domande-e-risposte-ricorrenti/" target="_blank" rel="noopener" style="color:#16305C; font-weight:600;">FAQ - Domande e risposte frequenti</a>. In questa sezione (in aggiornamento) sono già presenti le risposte ai quesiti e dubbi più comuni.
       </p>
-
       <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
-        <strong>Documentazione di riferimento:</strong>
-        Il chatbot risponde soltanto su argomenti presenti nei testi ufficiali.
-        Per la consultazione integrale o per eventuali verifiche dirette,
-        la documentazione completa è disponibile al seguente link:
-        <a href="INSERISCI-QUI-LINK-DOCUMENTAZIONE"
-           target="_blank"
-           style="color:#16305C; font-weight:600;">
-           Documentazione ufficiale
-        </a>.
+        <strong>Documentazione di riferimento:</strong> Il chatbot risponde soltanto su argomenti presenti nei testi ufficiali. Per la consultazione integrale o per eventuali verifiche dirette, la documentazione completa è disponibile al seguente link: <a href="https://marche.federvolley.it/esame-della-normativa-vigente/" target="_blank" rel="noopener" style="color:#16305C; font-weight:600;">La Normativa Vigente in dettaglio</a>.
       </p>
-
       <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
-        <strong>Formulazione dei quesiti:</strong>
-        Si raccomanda di porre le domande in modo chiaro e dettagliato.
-        È possibile inserire domande successive per affinare le risposte
-        o richiedere ulteriori dettagli.
+        <strong>Formulazione dei quesiti:</strong> Si raccomanda di porre le domande in modo chiaro e dettagliato. È possibile inserire domande successive per affinare le risposte o richiedere ulteriori dettagli.
       </p>
-
       <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
-        <strong>Valore delle risposte:</strong>
-        Le informazioni fornite dall'assistente virtuale hanno carattere
-        informativo. Ogni risposta va pertanto letta, compresa e verificata
-        rispetto ai testi ufficiali presenti sul sito.
+        <strong>Valore delle risposte:</strong> Le informazioni fornite dall'assistente virtuale hanno carattere informativo. Ogni risposta va pertanto letta, compresa e verificata rispetto ai testi ufficiali presenti sul sito.
       </p>
-
-      <p style="font-size:12.5px; line-height:1.5; margin:0;">
-        <strong>Argomenti non presenti:</strong>
-        Qualora un'informazione non sia reperibile nella documentazione,
-        il chatbot lo segnalerà e indicherà le vie alternative di contatto
-        con il Comitato (ad esempio e-mail). Le risposte a tali richieste
-        verranno quindi fornite necessariamente secondo tempistiche non
-        immediate e modalità ordinarie.
+      <p style="font-size:12.5px; line-height:1.5; margin:0 0 0;">
+        <strong>Argomenti non presenti:</strong> Qualora un'informazione non sia reperibile nella documentazione, il chatbot lo segnalerà e indicherà le vie alternative di contatto con il Comitato (ad esempio e-mail). Le risposte a tali richieste verranno quindi fornite necessariamente secondo tempistiche non immediate e modalità ordinarie.
       </p>
     </div>
 
-
-    <div style="
-      background:#FFF4E2;
-      border-left:4px solid #F2A93B;
-      border-radius:8px;
-      padding:12px;
-      margin-bottom:16px;
-    ">
+    <div style="background:#FFF4E2; border-left:4px solid #F2A93B; border-radius:8px; padding:12px; margin-bottom:16px;">
       <div style="font-size:14px; font-weight:700; color:#16305C; margin-bottom:12px;">
         ⚠️ Condizioni di accesso e limiti di utilizzo
       </div>
-
-      <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
-        <strong>Limite di domande per società:</strong>
-        In considerazione dei costi procedurali, è consentito un
-        <strong>numero massimo di XXX domande complessive per ciascuna
-        società per mese solare</strong>.
-        Superato tale limite, l'accesso verrà bloccato automaticamente
-        e potrà essere ripristinato solo su richiesta al
-        <strong>COMITATO REGIONALE</strong>.
+      <p style="font-size:12.5px; line-height:1.5; margin:0 0 6px;">
+        <strong>Limite di domande per società:</strong> In considerazione dei costi procedurali, è consentito per ciascuna società un numero massimo di domande con i seguenti limiti:
       </p>
-
+      <ul style="font-size:12.5px; line-height:1.5; margin:0 0 10px; padding-left:20px;">
+        <li><strong>20 domande</strong> per il periodo dal 1/dic/2026 al 31/dic/2026</li>
+        <li><strong>50 domande</strong> per ogni mese durante il periodo dal 1/gen/2027 al 30/giu/2027.</li>
+      </ul>
       <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
-        <strong>Autenticazione e identificazione:</strong>
-        La password di accesso è condivisa tra gli utenti appartenenti
-        alla medesima società. Nella schermata successiva e ad ogni accesso
-        successivo è richiesto l'inserimento di
-        <strong>Nome, Cognome e Qualifica</strong> del richiedente.
+        Superati tali limiti, l'accesso verrà bloccato per il mese in corso, con ripristino automatico all'inizio del mese successivo; in alternativa potrà essere ripristinato su specifica richiesta al <strong>COMITATO REGIONALE</strong>.
       </p>
-
-      <p style="font-size:12.5px; line-height:1.5; margin:0;">
-        <strong>Trattamento dati e riservatezza:</strong>
-        I dati identificativi inseriti saranno trattati nel rispetto della
-        normativa sulla privacy al solo fine di gestire e monitorare gli
-        accessi. Si richiede di non inserire dati personali sensibili o
-        informazioni riservate all'interno dei testi delle domande.
+      <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
+        <strong>Autenticazione e identificazione:</strong> La password di accesso è condivisa tra gli utenti appartenenti alla medesima società. Nella schermata seguente e ad ogni accesso successivo è richiesto l'inserimento di <strong>Nome, Cognome e Qualifica</strong> del richiedente.
+      </p>
+      <p style="font-size:12.5px; line-height:1.5; margin:0 0 0;">
+        <strong>Trattamento dati e riservatezza:</strong> I dati identificativi inseriti saranno trattati nel rispetto della normativa sulla privacy al solo fine di gestire e monitorare gli accessi. Si richiede di non inserire dati personali sensibili o informazioni riservate all'interno dei testi delle domande.
       </p>
     </div>
 
