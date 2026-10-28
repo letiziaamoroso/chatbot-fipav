@@ -11,9 +11,11 @@ const {
   getUserById,
   touchLogin,
   ensureCurrentMonth,
+  currentMonth,
   incrementQuestionCount,
   addUser,
   setUserEmail,
+  setUserSocieta,
   listUsers,
   deleteUser,
   resetCounter,
@@ -40,14 +42,21 @@ const PORT = process.env.PORT || 3000;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "cambia-questa-password";
-// Limite mensile di domande: 200 per la società "MARCHE", 20 per tutte le altre.
+// Limite mensile di domande per società:
+//  - società "MARCHE": 200 al mese;
+//  - tutte le altre: 50 al mese da gennaio a giugno 2027, 20 in ogni altro mese
+//    (dicembre 2026 compreso), come scritto nelle istruzioni mostrate agli utenti.
 const LIMIT_MARCHE = 200;
 const LIMIT_DEFAULT = 20;
+const LIMIT_GEN_GIU_2027 = 50;
 function limitFor(user) {
   const nome = String((user && user.societa) || "").trim().toLowerCase();
-  return nome === "marche" ? LIMIT_MARCHE : LIMIT_DEFAULT;
+  if (nome === "marche") return LIMIT_MARCHE;
+  const m = currentMonth(); // formato AAAA-MM
+  if (m >= "2027-01" && m <= "2027-06") return LIMIT_GEN_GIU_2027;
+  return LIMIT_DEFAULT;
 }
-const CONTACT_EMAIL = "marche@federvolley.it";
+const CONTACT_EMAIL = "labussoladelvolley@gmail.com";
 const DOCS_DIR = path.join(__dirname, "docs");
 
 // ---------------------------------------------------------------------------
@@ -178,7 +187,7 @@ async function reloadDocs() {
 
 const NOT_FOUND_MARKER = "NON_TROVATO:";
 const MAX_REFORMULATIONS = 3; // quante volte si chiede all'utente di riformulare prima di indicare la mail
-const FALLBACK_EMAIL = "labussoladelvolley@gmail.com";
+const FALLBACK_EMAIL = CONTACT_EMAIL;
 
 function buildSystemPrompt(relevantText, priorityText = "") {
   const hasPriority = !!priorityText;
@@ -321,6 +330,7 @@ app.post("/api/login", (req, res) => {
 
   const user = getUserByPassword(password.trim());
   if (!user) return res.status(401).json({ error: "Password non riconosciuta." });
+  ensureCurrentMonth(user); // a inizio mese sblocca chi era bloccato per limite
   if (user.blocked) return res.status(403).json({ error: `Questo accesso è stato bloccato. Contatta il Comitato scrivendo a ${CONTACT_EMAIL}.` });
 
   touchLogin(user.id);
@@ -559,6 +569,13 @@ app.post("/api/admin/users/:id/password", requireAdmin, (req, res) => {
   }
 });
 
+app.post("/api/admin/users/:id/societa", requireAdmin, (req, res) => {
+  const nome = String(req.body.societa || "").trim();
+  if (!nome) return res.status(400).json({ error: "Il nome della società non può essere vuoto." });
+  setUserSocieta(req.params.id, nome);
+  res.json({ ok: true });
+});
+
 app.post("/api/admin/users/:id/email", requireAdmin, (req, res) => {
   const { email } = req.body;
   if (email && email.trim() && !EMAIL_RE.test(email.trim())) {
@@ -599,7 +616,7 @@ app.post("/api/admin/faqs", requireAdmin, (req, res) => {
 });
 
 app.get("/api/health", (req, res) =>
-  res.json({ ok: true, totalDocChars: TOTAL_DOC_CHARS, chunks: DOCS_INDEX.chunks.length, maxQuestionsPerMonth: LIMIT_DEFAULT, limitMarche: LIMIT_MARCHE })
+  res.json({ ok: true, totalDocChars: TOTAL_DOC_CHARS, chunks: DOCS_INDEX.chunks.length, maxQuestionsPerMonth: limitFor({}), limitMarche: LIMIT_MARCHE })
 );
 
 async function start() {
