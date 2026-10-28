@@ -43,7 +43,7 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "cambia-questa-password";
 // Limite mensile di domande per società:
-//  - società "MARCHE": 200 al mese;
+//  - società "MARCHE" / "COMITATO REGIONALE MARCHE": 200 al mese;
 //  - tutte le altre: 50 al mese da gennaio a giugno 2027, 20 in ogni altro mese
 //    (dicembre 2026 compreso), come scritto nelle istruzioni mostrate agli utenti.
 const LIMIT_MARCHE = 200;
@@ -51,7 +51,7 @@ const LIMIT_DEFAULT = 20;
 const LIMIT_GEN_GIU_2027 = 50;
 function limitFor(user) {
   const nome = String((user && user.societa) || "").trim().toLowerCase();
-  if (nome === "marche") return LIMIT_MARCHE;
+  if (nome === "marche" || nome === "comitato regionale marche") return LIMIT_MARCHE;
   const m = currentMonth(); // formato AAAA-MM
   if (m >= "2027-01" && m <= "2027-06") return LIMIT_GEN_GIU_2027;
   return LIMIT_DEFAULT;
