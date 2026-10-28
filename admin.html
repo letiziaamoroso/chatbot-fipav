@@ -266,12 +266,18 @@
       <table>
         <thead>
           <tr>
+            <th style="width:70px;" class="sortable" data-table="faqs" data-col="id" onclick="toggleSort('faqs','id')">ID <span class="arrow">▾</span></th>
+            <th class="sortable" data-table="faqs" data-col="societa" onclick="toggleSort('faqs','societa')">Società <span class="arrow">▾</span></th>
+            <th class="sortable" data-table="faqs" data-col="utente" onclick="toggleSort('faqs','utente')">Utente <span class="arrow">▾</span></th>
             <th class="sortable" data-table="faqs" data-col="domanda" onclick="toggleSort('faqs','domanda')">Domanda <span class="arrow">▾</span></th>
             <th>Risposta</th>
             <th class="sortable" data-table="faqs" data-col="timestamp" onclick="toggleSort('faqs','timestamp')">Data/ora <span class="arrow">▾</span></th>
             <th></th>
           </tr>
           <tr class="filter-row">
+            <th><input type="text" oninput="setFilter('faqs','id',this.value)" placeholder="Filtra..." /></th>
+            <th><input type="text" oninput="setFilter('faqs','societa',this.value)" placeholder="Filtra..." /></th>
+            <th><input type="text" oninput="setFilter('faqs','utente',this.value)" placeholder="Filtra..." /></th>
             <th><input type="text" oninput="setFilter('faqs','domanda',this.value)" placeholder="Filtra..." /></th>
             <th><input type="text" oninput="setFilter('faqs','risposta',this.value)" placeholder="Filtra..." /></th>
             <th></th>
@@ -677,6 +683,9 @@
   }
 
   const faqsGetters = {
+    id: (l) => l.id,
+    societa: (l) => l.societa || "",
+    utente: (l) => `${l.nome || ""} ${l.cognome || ""} ${l.qualifica || ""}`,
     domanda: (l) => l.domanda || "",
     risposta: (l) => l.risposta || "",
     timestamp: (l) => l.timestamp || "",
@@ -686,13 +695,16 @@
     const tbody = document.getElementById("faqs-tbody");
     const rows = applyFiltersAndSort(faqs, tableState.faqs, faqsGetters);
     if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" style="color:var(--muted);">Nessuna FAQ corrisponde (o non ne hai ancora aggiunte). Aggiungine una qui sopra, oppure vai su "Domande" e usa "Segna come FAQ".</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="color:var(--muted);">Nessuna FAQ corrisponde (o non ne hai ancora aggiunte). Aggiungine una qui sopra, oppure vai su "Domande" e usa "Segna come FAQ".</td></tr>`;
       return;
     }
     tbody.innerHTML = rows
       .map(
         (l) => `
       <tr>
+        <td>${l.id}</td>
+        <td>${l.societa ? escapeHtml(l.societa) : "<em>inserita dal pannello</em>"}</td>
+        <td>${l.nome || l.cognome ? escapeHtml(l.nome || "") + " " + escapeHtml(l.cognome || "") + '<br><span style="color:var(--muted); font-size:11px;">' + escapeHtml(l.qualifica || "") + "</span>" : "<em>—</em>"}</td>
         <td>${escapeHtml(l.domanda)}</td>
         <td class="risposta-cell">${escapeHtml(l.risposta || "")}</td>
         <td>${escapeHtml(l.timestamp)}</td>
@@ -758,6 +770,7 @@
 
   function exportFaqsToExcel() {
     const data = lastFaqs.map((l) => ({
+      ID: l.id,
       "Codice Società": l.codice_societa || "",
       Società: l.societa || "",
       Nome: l.nome || "",
@@ -768,7 +781,7 @@
       Categoria: l.categoria || "",
       Data: l.timestamp || "",
     }));
-    writeExcelFile(data, [16, 18, 14, 14, 16, 40, 60, 22, 18], "faq-fipav");
+    writeExcelFile(data, [8, 16, 18, 14, 14, 16, 40, 60, 22, 18], "faq-fipav");
   }
 
   function writeExcelFile(data, colWidths, filenamePrefix) {
