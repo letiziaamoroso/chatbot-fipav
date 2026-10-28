@@ -51,7 +51,9 @@
   .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
   .card h2 { font-size: 15px; margin: 0 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
-  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* la tabella scorre dentro il suo riquadro: la barra orizzontale resta sempre visibile in basso */
+  .table-scroll { overflow: auto; max-height: 72vh; -webkit-overflow-scrolling: touch; }
+  .table-scroll thead tr:first-child th { position: sticky; top: 0; background: #fff; z-index: 2; }
   table { width: 100%; min-width: 920px; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.03em; }
@@ -595,6 +597,7 @@
             <td>${statusPill}</td>
             <td>${u.last_login ? escapeHtml(u.last_login) : "mai"}</td>
             <td class="row-actions">
+              <button onclick="changeSocieta(${u.id}, ${escapeHtml(JSON.stringify(u.societa || ""))})">Modifica nome</button>
               <button onclick="changeEmail(${u.id}, ${escapeHtml(JSON.stringify(u.email || ""))})">Modifica mail</button>
               <button onclick="changePassword(${u.id})">Cambia password</button>
               <button onclick="resetCounter(${u.id})">Azzera contatore</button>
@@ -781,6 +784,20 @@
     if (!nuovo || !nuovo.trim()) return;
     try {
       await api(`/api/admin/users/${id}/password`, { method: "POST", body: JSON.stringify({ password: nuovo.trim() }) });
+      loadAll();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+  async function changeSocieta(id, current) {
+    const nuovo = prompt("Inserisci il nuovo nome della società:", current || "");
+    if (nuovo === null) return; // l'utente ha annullato
+    if (!nuovo.trim()) {
+      alert("Il nome della società non può essere vuoto.");
+      return;
+    }
+    try {
+      await api(`/api/admin/users/${id}/societa`, { method: "POST", body: JSON.stringify({ societa: nuovo.trim() }) });
       loadAll();
     } catch (err) {
       alert(err.message);
