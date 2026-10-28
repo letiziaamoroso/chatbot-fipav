@@ -96,12 +96,19 @@ function registerUser(userId, nome, cognome, qualifica) {
 }
 
 // Assicura che il contatore sia relativo al mese corrente; se il mese è cambiato, lo azzera.
+// Se il mese è cambiato, sblocca anche le società bloccate per limite raggiunto
+// (ripristino automatico a inizio mese); i blocchi manuali restano.
 function ensureCurrentMonth(user) {
   const m = currentMonth();
   if (user.count_month !== m) {
     db.prepare("UPDATE users SET question_count = 0, count_month = ? WHERE id = ?").run(m, user.id);
     user.question_count = 0;
     user.count_month = m;
+    if (user.blocked && user.blocked_reason === "limite") {
+      db.prepare("UPDATE users SET blocked = 0, blocked_reason = NULL WHERE id = ?").run(user.id);
+      user.blocked = 0;
+      user.blocked_reason = null;
+    }
   }
   return user;
 }
@@ -122,6 +129,11 @@ function addUser(password, societa = null, codiceSocieta = null, email = null) {
 // svuotarla.
 function setUserEmail(id, email) {
   db.prepare("UPDATE users SET email = ? WHERE id = ?").run(email && email.trim() ? email.trim() : null, id);
+}
+
+// Modifica il nome della società (non tocca codice, password, mail né cronologia).
+function setUserSocieta(id, nome) {
+  db.prepare("UPDATE users SET societa = ? WHERE id = ?").run(String(nome).trim(), id);
 }
 
 function listUsers() {
@@ -251,6 +263,7 @@ module.exports = {
   incrementQuestionCount,
   addUser,
   setUserEmail,
+  setUserSocieta,
   listUsers,
   deleteUser,
   resetCounter,
