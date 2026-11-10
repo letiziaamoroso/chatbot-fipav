@@ -564,12 +564,12 @@
       <div class="stat-box">
         <div class="num">${nearLimit}</div>
         <div class="label">Vicine al limite</div>
-        <div class="hint">Non ancora bloccate, ma al 90% o più del proprio limite mensile: rischiano di bloccarsi a breve</div>
+        <div class="hint">Non ancora bloccate, ma al 90% o più del proprio limite: rischiano di bloccarsi a breve</div>
       </div>
       <div class="stat-box">
         <div class="num">${blocked.length}</div>
         <div class="label">Società bloccate</div>
-        <div class="hint">${blockedByLimit} per limite mensile raggiunto, ${blockedManually} bloccate manualmente da te</div>
+        <div class="hint">${blockedByLimit} per limite raggiunto, ${blockedManually} bloccate manualmente da te</div>
       </div>
     `;
   }
@@ -890,7 +890,7 @@
         "Codice società": u.codice_societa || "",
         "Mail società": u.email || "",
         Password: u.password,
-        "Domande questo mese": u.question_count,
+        "Domande nel periodo": u.question_count,
         Bloccato: u.blocked ? "sì" : "no",
         "Ultimo accesso": u.last_login || "",
         Creata: u.created_at || "",
