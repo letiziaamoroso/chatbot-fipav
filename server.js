@@ -42,17 +42,27 @@ const PORT = process.env.PORT || 3000;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "cambia-questa-password";
-// Limite mensile di domande per società:
+// Limiti di domande per società (il conteggio vale per un "periodo"):
 //  - società "MARCHE" / "COMITATO REGIONALE MARCHE": 200 al mese;
-//  - tutte le altre: 50 al mese da gennaio a giugno 2027, 20 in ogni altro mese
-//    (dicembre 2026 compreso), come scritto nelle istruzioni mostrate agli utenti.
+//  - tutte le altre: 20 domande in dicembre 2026 (e in ogni mese fuori dai periodi
+//    indicati), 50 domande IN TOTALE dal 1/1/2027 al 30/6/2027 (un unico conteggio
+//    per tutto il semestre, senza azzeramento a fine mese).
 const LIMIT_MARCHE = 200;
 const LIMIT_DEFAULT = 20;
 const LIMIT_GEN_GIU_2027 = 50;
-function limitFor(user) {
+function isMarche(user) {
   const nome = String((user && user.societa) || "").trim().toLowerCase();
-  if (nome === "marche" || nome === "comitato regionale marche") return LIMIT_MARCHE;
-  const m = currentMonth(); // formato AAAA-MM
+  return nome === "marche" || nome === "comitato regionale marche";
+}
+// Chiave del periodo di conteggio: cambia quando il contatore deve ripartire da zero.
+function periodKeyFor(user) {
+  const m = currentMonth(); // AAAA-MM
+  if (!isMarche(user) && m >= "2027-01" && m <= "2027-06") return "2027-H1";
+  return m;
+}
+function limitFor(user) {
+  if (isMarche(user)) return LIMIT_MARCHE;
+  const m = currentMonth();
   if (m >= "2027-01" && m <= "2027-06") return LIMIT_GEN_GIU_2027;
   return LIMIT_DEFAULT;
 }
@@ -330,7 +340,7 @@ app.post("/api/login", (req, res) => {
 
   const user = getUserByPassword(password.trim());
   if (!user) return res.status(401).json({ error: "Password non riconosciuta." });
-  ensureCurrentMonth(user); // a inizio mese sblocca chi era bloccato per limite
+  ensureCurrentMonth(user, periodKeyFor(user)); // a inizio periodo sblocca chi era bloccato per limite
   if (user.blocked) return res.status(403).json({ error: `Questo accesso è stato bloccato. Contatta il Comitato scrivendo a ${CONTACT_EMAIL}.` });
 
   touchLogin(user.id);
@@ -371,7 +381,7 @@ app.post("/api/chat", requireSession, async (req, res) => {
     return res.status(400).json({ error: "Domanda vuota." });
   }
 
-  let user = ensureCurrentMonth(req.user);
+  let user = ensureCurrentMonth(req.user, periodKeyFor(req.user));
   if (!req.session.nome) {
     return res.status(403).json({ error: "Completa prima i tuoi dati (nome, cognome, qualifica)." });
   }
