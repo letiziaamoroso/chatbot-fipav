@@ -299,10 +299,10 @@ function showInstructionsStep(token) {
       </p>
       <ul style="font-size:12.5px; line-height:1.5; margin:0 0 10px; padding-left:20px;">
         <li><strong>20 domande</strong> per il periodo dal 1/dic/2026 al 31/dic/2026</li>
-        <li><strong>50 domande</strong> per ogni mese durante il periodo dal 1/gen/2027 al 30/giu/2027.</li>
+        <li><strong>50 domande</strong> dal 1/gen/2027 al 30/giu/2027.</li>
       </ul>
       <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
-        Superati tali limiti, l'accesso verrà bloccato per il mese in corso, con ripristino automatico all'inizio del mese successivo; in alternativa potrà essere ripristinato su specifica richiesta al <strong>COMITATO REGIONALE</strong>.
+        Superati tali limiti, l'accesso verrà bloccato fino al termine del periodo di riferimento, con ripristino automatico all'inizio del periodo successivo; in alternativa potrà essere ripristinato su specifica richiesta al <strong>COMITATO REGIONALE</strong>.
       </p>
       <p style="font-size:12.5px; line-height:1.5; margin:0 0 10px;">
         <strong>Autenticazione e identificazione:</strong> La password di accesso è condivisa tra gli utenti appartenenti alla medesima società. Nella schermata seguente e ad ogni accesso successivo è richiesto l'inserimento di <strong>Nome, Cognome e Qualifica</strong> del richiedente.
@@ -431,7 +431,7 @@ function showInstructionsStep(token) {
       if (typeof data.remaining === "number") {
         const counterEl = document.createElement("div");
         counterEl.className = "fpv-counter";
-        counterEl.textContent = `Domande rimanenti questo mese: ${data.remaining}`;
+        counterEl.textContent = `Domande rimanenti: ${data.remaining}`;
         body.appendChild(counterEl);
         body.scrollTop = body.scrollHeight;
       }
