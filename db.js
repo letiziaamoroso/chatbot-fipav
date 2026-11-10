@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
   qualifica TEXT,
   registered INTEGER NOT NULL DEFAULT 0,
   question_count INTEGER NOT NULL DEFAULT 0,
-  count_month TEXT,                 -- formato 'YYYY-MM', mese a cui si riferisce question_count
+  count_month TEXT,                 -- periodo a cui si riferisce question_count: 'YYYY-MM' oppure '2027-H1' (gen-giu 2027)
   blocked INTEGER NOT NULL DEFAULT 0, -- blocco (manuale o automatico al raggiungimento del limite)
   blocked_reason TEXT,                -- 'limite' oppure 'manuale', null se non bloccato
   is_system INTEGER NOT NULL DEFAULT 0, -- 1 = utente tecnico nascosto (es. per FAQ create manualmente), mai usabile per login
@@ -98,8 +98,8 @@ function registerUser(userId, nome, cognome, qualifica) {
 // Assicura che il contatore sia relativo al mese corrente; se il mese è cambiato, lo azzera.
 // Se il mese è cambiato, sblocca anche le società bloccate per limite raggiunto
 // (ripristino automatico a inizio mese); i blocchi manuali restano.
-function ensureCurrentMonth(user) {
-  const m = currentMonth();
+function ensureCurrentMonth(user, key) {
+  const m = key || currentMonth();
   if (user.count_month !== m) {
     db.prepare("UPDATE users SET question_count = 0, count_month = ? WHERE id = ?").run(m, user.id);
     user.question_count = 0;
