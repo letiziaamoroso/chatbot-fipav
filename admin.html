@@ -145,6 +145,8 @@
     <div style="display:flex; align-items:center; gap:10px;">
       <button class="btn" onclick="downloadBackupExcel()" id="backup-xlsx-btn">Backup Excel</button>
       <button class="btn" onclick="downloadBackupDb()" id="backup-db-btn">Backup completo (.db)</button>
+      <button class="btn" onclick="document.getElementById('restore-file').click()" id="restore-btn">Ripristina backup (.db)</button>
+      <input type="file" id="restore-file" accept=".db" style="display:none" onchange="restoreBackupDb(this)">
       <button class="btn" onclick="reloadDocs()" id="reload-docs-btn">Ricarica documentazione</button>
       <button class="btn" onclick="logout()">Esci</button>
     </div>
@@ -939,6 +941,38 @@
       URL.revokeObjectURL(url);
     } catch (err) {
       alert("Backup non riuscito: " + err.message);
+    }
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+
+  async function restoreBackupDb(input) {
+    const file = input.files[0];
+    input.value = "";
+    if (!file) return;
+    const ok = confirm(
+      "ATTENZIONE: il ripristino SOSTITUISCE tutte le società, le domande e le FAQ attuali con quelle del file:\n\n" +
+      file.name + "\n\nPrima viene salvata una copia di sicurezza. Vuoi continuare?"
+    );
+    if (!ok) return;
+    const typed = prompt("Per confermare scrivi: RIPRISTINA");
+    if (typed !== "RIPRISTINA") { alert("Ripristino annullato."); return; }
+    const btn = document.getElementById("restore-btn");
+    const old = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Ripristino...";
+    try {
+      const resp = await fetch(API_BASE_URL + "/api/admin/restore/db", {
+        method: "POST",
+        headers: { "x-admin-password": adminPassword, "Content-Type": "application/octet-stream" },
+        body: file,
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || ("Errore " + resp.status));
+      alert("Ripristino completato: " + data.societa + " società e " + data.domande + " domande. La pagina si ricarica.");
+      location.reload();
+    } catch (err) {
+      alert("Ripristino non riuscito: " + err.message);
     }
     btn.disabled = false;
     btn.textContent = old;
