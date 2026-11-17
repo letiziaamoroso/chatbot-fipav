@@ -547,6 +547,79 @@ app.get("/api/admin/backup/db", requireAdmin, async (req, res) => {
   }
 });
 
+// Ripristino da un backup completo (.db). Sostituisce società, domande e FAQ con quelli del file.
+// Prima di toccare qualcosa salva una copia di sicurezza dello stato attuale accanto al database.
+app.post(
+  "/api/admin/restore/db",
+  requireAdmin,
+  express.raw({ type: () => true, limit: "300mb" }),
+  async (req, res) => {
+    const tmp = path.join(require("os").tmpdir(), `restore-${Date.now()}.db`);
+    try {
+      if (!Buffer.isBuffer(req.body) || req.body.length < 100) {
+        return res.status(400).json({ error: "File vuoto o non valido." });
+      }
+      fs.writeFileSync(tmp, req.body);
+
+      // 1) Controlla che sia un database valido con le tabelle attese
+      const Database = require("better-sqlite3");
+      let check;
+      try {
+        check = new Database(tmp, { readonly: true, fileMustExist: true });
+        const names = check.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((r) => r.name);
+        if (!names.includes("users") || !names.includes("logs")) {
+          throw new Error("Mancano le tabelle users/logs: non sembra un backup di questo chatbot.");
+        }
+        check.prepare("SELECT COUNT(*) AS n FROM users").get();
+      } catch (e) {
+        if (check) check.close();
+        fs.unlink(tmp, () => {});
+        return res.status(400).json({ error: "File non valido: " + e.message });
+      }
+      const nUsers = check.prepare("SELECT COUNT(*) AS n FROM users").get().n;
+      const nLogs = check.prepare("SELECT COUNT(*) AS n FROM logs").get().n;
+      check.close();
+
+      // 2) Copia di sicurezza dello stato attuale
+      const safety = path.join(path.dirname(process.env.DB_PATH || path.join(__dirname, "chatbot.db")), `prima-del-ripristino-${Date.now()}.db`);
+      await db.backup(safety);
+
+      // 3) Ripristino: importa le colonne in comune, tutto in un'unica transazione
+      db.prepare("ATTACH DATABASE ? AS bk").run(tmp);
+      try {
+        const common = (t) => {
+          const a = db.prepare(`PRAGMA main.table_info(${t})`).all().map((c) => c.name);
+          const b = db.prepare(`PRAGMA bk.table_info(${t})`).all().map((c) => c.name);
+          return a.filter((c) => b.includes(c)).map((c) => `"${c}"`).join(",");
+        };
+        const cu = common("users");
+        const cl = common("logs");
+        db.exec("BEGIN");
+        try {
+          db.exec("DELETE FROM sessions");
+          db.exec("DELETE FROM logs");
+          db.exec("DELETE FROM users");
+          db.exec(`INSERT INTO users (${cu}) SELECT ${cu} FROM bk.users`);
+          db.exec(`INSERT INTO logs (${cl}) SELECT ${cl} FROM bk.logs`);
+          db.exec("COMMIT");
+        } catch (e) {
+          db.exec("ROLLBACK");
+          throw e;
+        }
+      } finally {
+        db.exec("DETACH DATABASE bk");
+      }
+      fs.unlink(tmp, () => {});
+      console.log(`Ripristino completato: ${nUsers} società, ${nLogs} domande. Copia precedente: ${safety}`);
+      res.json({ ok: true, societa: nUsers, domande: nLogs });
+    } catch (err) {
+      console.error("Errore ripristino:", err);
+      fs.unlink(tmp, () => {});
+      res.status(500).json({ error: "Ripristino non riuscito: " + err.message });
+    }
+  }
+);
+
 app.delete("/api/admin/users/:id", requireAdmin, (req, res) => {
   deleteUser(req.params.id);
   res.json({ ok: true });
